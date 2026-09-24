@@ -180,46 +180,141 @@ export const RECENT_CHATS = [
   'Paneer sabzi recipe',
 ];
 
-export const MOCK_ACTIVE_CHAT_MESSAGES: ChatMessage[] = [
-  {
-    id: 'msg-1',
-    sender: 'user',
-    text: 'sdasdsdcdcdcadcadsasjhcbjasbchjashcbjashcvjasvcjgasvchgasvcygasvcytasvycavsycvasycvayscvyasvtcyasvcyastvcsdasdasjhdsjbdaskjnasjd\\sakjdbakshdasdbhksabdkjasjbdkasbj',
-    timestamp: '14:20',
-  },
-  {
-    id: 'msg-2',
-    sender: 'sovara',
-    text: `All set—the build is in progress. Here's what's changed:
+export const INITIAL_CHAT_MESSAGES_MAP: Record<string, ChatMessage[]> = {
+  'chat-hw': [
+    {
+      id: 'msg-hw-1',
+      sender: 'user',
+      text: 'Can you help me solve this calculus optimization problem? I need to find the dimensions of the maximum volume cylinder inscribed in a right circular cone of height H and radius R.',
+      timestamp: '14:20',
+    },
+    {
+      id: 'msg-hw-2',
+      sender: 'sovara',
+      text: `Here is the step-by-step calculus solution for finding the maximum cylinder inscribed in a cone:
 
-• The noise texture has been removed from the background
-• The design has been revamped; it's now more minimalist. Icons from hugeicons have been added.
-• Geist font for text
-• Added scrolling animation
-• Accent Color #F36223 and dark text with an inverted white button (black when hovered over)
-• “Smooth” animations have been added
-• Added language selection (Russian, English)
-• A page with projects has been added to the link www.google.com`,
-    timestamp: '14:22',
-    meta: {
-      duration: 'Worked for 69m',
-      sourcesCount: 420,
-      searchesCount: 666,
-    },
-    attachments: [
-      {
-        name: 'Vendor_warrantyReport.pdf',
-        pages: 69,
-        description: 'Tabular comparison',
+1. Geometric Constraint:
+   Let the inscribed cylinder have radius r and height h. By similar right triangles along the cross-section:
+   h / (R - r) = H / R  ==>  h = H * (1 - r / R)
+
+2. Volume Function:
+   V(r) = π * r² * h = π * H * (r² - r³ / R)
+
+3. Critical Points:
+   Differentiate with respect to r and equate to zero:
+   dV/dr = π * H * (2r - 3r² / R) = 0
+   Since r ≠ 0, 2 - 3r / R = 0  ==>  r = (2/3) * R
+
+4. Optimal Height:
+   h = H * (1 - 2/3) = (1/3) * H
+
+5. Maximum Inscribed Volume:
+   V_max = π * (4/9 * R²) * (1/3 * H) = (4/27) * π * R² * H
+   This is exactly 4/9 (~44.4%) of the cone's total volume.`,
+      timestamp: '14:22',
+      meta: {
+        duration: 'Worked for 45s',
+        sourcesCount: 3,
+        searchesCount: 6,
       },
-    ],
-    citationQuote: {
-      title: 'Building a scalable cross-platform Design System',
-      snippet: 'The discussion around UI Design vs Brand Design has been a cause of major confusion for me when I was early in my design career. Even though I knew that brand designers usually create a logo, color palettes, typography and language choices (and much more), working with them was not always the most pleasant experience for me.',
+      citationQuote: {
+        title: 'Calculus: Early Transcendentals - Optimization Problems',
+        snippet: 'When formulating geometric optimization models, express all dimensional variables in terms of a single independent parameter using similarity constraints before differentiating.',
+      },
+      hasSources: true,
     },
-    hasSources: true,
-  },
-];
+  ],
+  'chat-ds': [
+    {
+      id: 'msg-ds-1',
+      sender: 'user',
+      text: 'What are the most robust techniques for evaluating a model on extreme class imbalance (0.2% fraud detection)?',
+      timestamp: '11:15',
+    },
+    {
+      id: 'msg-ds-2',
+      sender: 'sovara',
+      text: `For extremely imbalanced datasets (e.g., 0.2% positive fraud cases), standard metrics like accuracy are misleading. Here is the recommended methodology:
+
+• Primary Metric: Precision-Recall Area Under Curve (PR-AUC / Average Precision). Unlike ROC-AUC, PR-AUC does not get artificially inflated by a massive true negative count.
+• Decision Threshold Tuning: Plot the Cost vs. Threshold curve incorporating the business cost of false negatives ($ loss from undetected fraud) vs false positives (customer verification friction).
+• Sampling Strategy: Evaluate models on an untouched, natural distribution validation set. Apply SMOTE, Tomek Links, or Random Under-sampling strictly to the training fold inside cross-validation loops.
+• Architecture Choice: Calibrated XGBoost with scale_pos_weight or an Isolation Forest anomaly detection ensemble.`,
+      timestamp: '11:18',
+      meta: {
+        duration: 'Worked for 1m',
+        sourcesCount: 8,
+        searchesCount: 14,
+      },
+      hasSources: true,
+    },
+  ],
+  'chat-sl': [
+    {
+      id: 'msg-sl-1',
+      sender: 'user',
+      text: 'She left me on read yesterday after I invited her to coffee this weekend. Should I send a follow-up message?',
+      timestamp: '19:40',
+    },
+    {
+      id: 'msg-sl-2',
+      sender: 'sovara',
+      text: `Here is a grounded perspective on handling being left on read:
+
+1. Pause and give it space (at least 48–72 hours):
+   A 24-hour window is brief. People often read messages while rushing between meetings or classes and genuinely forget to type a reply.
+2. Avoid sending a direct "Did you see this?" or "?"
+   This often introduces unspoken pressure.
+3. If several days pass with silence:
+   Take it gracefully as low availability or interest for now. Keep your weekend schedule full, hang out with friends, and direct your attention toward your own pursuits. High emotional independence is always the most attractive posture.`,
+      timestamp: '19:42',
+      meta: {
+        duration: 'Worked for 20s',
+        sourcesCount: 2,
+        searchesCount: 4,
+      },
+      hasSources: false,
+    },
+  ],
+  'chat-ps': [
+    {
+      id: 'msg-ps-1',
+      sender: 'user',
+      text: 'Give me an authentic restaurant-style Shahi Paneer recipe that uses hung curd instead of heavy cashews.',
+      timestamp: '17:05',
+    },
+    {
+      id: 'msg-ps-2',
+      sender: 'sovara',
+      text: `Here is a velvety, aromatic Shahi Paneer that achieves restaurant creaminess using whipped hung curd and melon seeds (magaz):
+
+Ingredients:
+• 250g fresh soft paneer, cubed
+• 1/2 cup hung curd (whisked till silky smooth)
+• 2 tbsp melon seeds (magaz) + 6 soaked almonds, pureed
+• 2 medium onions, 2 ripe tomatoes, 1 tbsp ginger-garlic paste
+• Whole spices: 1 bay leaf, 3 green cardamoms, 1 inch cinnamon stick
+• Ground spices: 1 tsp Kashmiri red chili, 1/2 tsp turmeric, 1 tsp coriander powder, 1/2 tsp garam masala
+• 1 tbsp kasuri methi (roasted & crushed), 1 tbsp butter + 1 tbsp oil, pinch of saffron
+
+Method:
+1. Sauté whole spices, sliced onions, tomatoes, and ginger-garlic until soft. Cool and blend with the almond-magaz paste into a velvety puree.
+2. Heat butter in a pan, pour the gravy through a fine strainer for that authentic silky restaurant texture.
+3. Lower the heat completely; fold in the whisked hung curd gradually while stirring continuously to prevent curdling.
+4. Add ground spices, kasuri methi, and a pinch of sugar. Simmer until oil separates.
+5. Gently drop in paneer cubes, cook on gentle heat for 3 minutes, and finish with saffron infused in warm milk.`,
+      timestamp: '17:08',
+      meta: {
+        duration: 'Worked for 50s',
+        sourcesCount: 5,
+        searchesCount: 9,
+      },
+      hasSources: true,
+    },
+  ],
+};
+
+export const MOCK_ACTIVE_CHAT_MESSAGES: ChatMessage[] = INITIAL_CHAT_MESSAGES_MAP['chat-hw'];
 
 export const ACTIVITY_STEPS: ActivityStep[] = [
   { id: 'act-1', title: 'Integrated 2 vendor proposals', status: 'success' },

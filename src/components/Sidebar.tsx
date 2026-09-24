@@ -27,10 +27,11 @@ interface SidebarProps {
   onToggle: () => void;
   activeTab: NavigationTab;
   onSelectTab: (tab: NavigationTab) => void;
-  onSelectChat: (chatTitle: string) => void;
+  onSelectChat: (chatId: string) => void;
   onNewChat?: () => void;
   onOpenSettings: () => void;
   activeChatTitle?: string;
+  activeChatId?: string;
   chatSessions?: ChatSession[];
   onRenameChat?: (id: string, newTitle: string) => void;
   onPinChat?: (id: string) => void;
@@ -49,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNewChat,
   onOpenSettings,
   activeChatTitle = 'Help me with homework',
+  activeChatId,
   chatSessions,
   onRenameChat,
   onPinChat,
@@ -257,7 +259,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <div className="space-y-0.5 flex-1">
             {sortedActiveChats.map((chat) => {
-              const isCurrent = activeTab === 'chat' && activeChatTitle === chat.title;
+              const isCurrent = activeTab === 'chat' && (activeChatId ? activeChatId === chat.id : activeChatTitle === chat.title);
               const isEditing = editingChatId === chat.id;
 
               return (
@@ -294,7 +296,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div
                       onClick={() => {
                         onSelectTab('chat');
-                        onSelectChat(chat.title);
+                        onSelectChat(chat.id);
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] transition-colors cursor-pointer group ${
                         isCurrent
@@ -357,7 +359,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-[#737380] hover:text-white hover:bg-[#141419] group cursor-pointer"
                         onClick={() => {
                           onSelectTab('chat');
-                          onSelectChat(chat.title);
+                          onSelectChat(chat.id);
                         }}
                       >
                         <span className="truncate flex-1 mr-1">{chat.title}</span>

@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { NavigationTab, VaultDocument, ArtifactItem, ChatSession } from './types';
-import { INITIAL_VAULT_DOCUMENTS, INITIAL_ARTIFACTS, RECENT_CHATS, INITIAL_CHAT_SESSIONS } from './data/mockData';
+import { NavigationTab, VaultDocument, ArtifactItem, ChatSession, ChatMessage } from './types';
+import { INITIAL_VAULT_DOCUMENTS, INITIAL_ARTIFACTS, RECENT_CHATS, INITIAL_CHAT_SESSIONS, INITIAL_CHAT_MESSAGES_MAP } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
 import { WindowBar } from './components/WindowBar';
 import { MainChat } from './components/MainChat';
@@ -23,9 +23,12 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rightBarOpen, setRightBarOpen] = useState(false);
   const [rightBarTab, setRightBarTab] = useState<'activity' | 'sources'>('activity');
-  const [activeChatTitle, setActiveChatTitle] = useState('Help me with homework');
+  
+  // Independent chat session state - default to fresh new chat on startup
+  const [activeChatId, setActiveChatId] = useState<string>(() => `chat-session-${Date.now()}`);
+  const [activeChatTitle, setActiveChatTitle] = useState('New Chat');
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(INITIAL_CHAT_SESSIONS);
-  const [chatSessionId, setChatSessionId] = useState<string>(() => `chat-${Date.now()}`);
+  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(INITIAL_CHAT_MESSAGES_MAP);
   
   // Data collections with CRUD capabilities
   const [vaultDocs, setVaultDocs] = useState<VaultDocument[]>(INITIAL_VAULT_DOCUMENTS);
@@ -104,11 +107,10 @@ export default function App() {
   };
 
   const handleRenameChat = (id: string, newTitle: string) => {
-    const target = chatSessions.find((c) => c.id === id);
     setChatSessions((prev) =>
       prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c))
     );
-    if (target && activeChatTitle === target.title) {
+    if (activeChatId === id) {
       setActiveChatTitle(newTitle);
     }
     showToast(`Chat renamed to "${newTitle}"`);
@@ -135,35 +137,83 @@ export default function App() {
       prev.map((c) => (c.id === id ? { ...c, isArchived: nextArchived } : c))
     );
     showToast(nextArchived ? 'Chat moved to archive' : 'Chat restored from archive');
-    if (nextArchived && activeChatTitle === target.title) {
+    if (nextArchived && activeChatId === id) {
       handleNewChat();
     }
   };
 
   const handleDeleteChat = (id: string) => {
-    const target = chatSessions.find((c) => c.id === id);
     setChatSessions((prev) => prev.filter((c) => c.id !== id));
+    setChatMessages((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     showToast('Chat deleted');
-    if (target && activeChatTitle === target.title) {
+    if (activeChatId === id) {
       handleNewChat();
     }
   };
 
+  const handleSaveMessages = (chatId: string, msgs: ChatMessage[]) => {
+    setChatMessages((prev) => ({
+      ...prev,
+      [chatId]: msgs,
+    }));
+  };
+
+  const handleChatTitleUpdate = (chatId: string, newTitle: string) => {
+    setActiveChatTitle(newTitle);
+    setChatSessions((prev) => {
+      const existing = prev.find((c) => c.id === chatId);
+      if (existing) {
+        return prev.map((c) => (c.id === chatId ? { ...c, title: newTitle } : c));
+      }
+      return [
+        { id: chatId, title: newTitle, isPinned: false, isArchived: false, createdAt: Date.now() },
+        ...prev,
+      ];
+    });
+  };
+
   const handleNewChat = () => {
+    const newId = `chat-session-${Date.now()}`;
+    setActiveChatId(newId);
     setActiveChatTitle('New Chat');
-    setChatSessionId(`chat-${Date.now()}`);
+    setChatMessages((prev) => ({ ...prev, [newId]: [] }));
     setActiveTab('chat');
     setRightBarOpen(false);
     if (isMobile) setSidebarOpen(false);
   };
 
-  const handleSelectChat = (chatTitle: string) => {
-    if (chatTitle === 'New Chat') {
+  const handleSelectChat = (idOrTitle: string) => {
+    if (idOrTitle === 'New Chat') {
       handleNewChat();
       return;
     }
-    setActiveChatTitle(chatTitle);
-    setChatSessionId(`chat-${chatTitle}`);
+    const foundSession = chatSessions.find((c) => c.id === idOrTitle || c.title === idOrTitle);
+    if (foundSession) {
+      setActiveChatId(foundSession.id);
+      setActiveChatTitle(foundSession.title);
+    } else {
+      const newId = `chat-ref-${Date.now()}`;
+      setActiveChatId(newId);
+      setActiveChatTitle(idOrTitle);
+      if (!chatMessages[newId]) {
+        setChatMessages((prev) => ({
+          ...prev,
+          [newId]: [
+            {
+              id: `msg-${Date.now()}`,
+              sender: 'sovara',
+              text: `Workspace artifacts and context loaded for "${idOrTitle}". All documentation references are ready.`,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              hasSources: true,
+            },
+          ],
+        }));
+      }
+    }
     setActiveTab('chat');
     setRightBarOpen(false);
     if (isMobile) setSidebarOpen(false);
@@ -194,6 +244,7 @@ export default function App() {
         onNewChat={handleNewChat}
         onOpenSettings={() => setIsSettingsOpen(true)}
         activeChatTitle={activeChatTitle}
+        activeChatId={activeChatId}
         chatSessions={chatSessions}
         onRenameChat={handleRenameChat}
         onPinChat={handlePinChat}
@@ -289,7 +340,7 @@ export default function App() {
             <AnimatePresence mode="wait">
               {activeTab === 'chat' && (
                 <motion.div
-                  key={chatSessionId}
+                  key={activeChatId}
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
@@ -297,18 +348,15 @@ export default function App() {
                   className="flex-1 flex overflow-hidden relative"
                 >
                   <MainChat
-                    key={chatSessionId}
+                    key={activeChatId}
+                    chatId={activeChatId}
                     chatTitle={activeChatTitle}
+                    initialMessages={chatMessages[activeChatId] || []}
                     onOpenRightBar={handleOpenRightBar}
                     onDownloadFile={handleDownloadFile}
                     sidebarOpen={sidebarOpen}
-                    onChatTitleUpdate={(newTitle) => {
-                      setActiveChatTitle(newTitle);
-                      setChatSessions((prev) => [
-                        { id: `chat-${Date.now()}`, title: newTitle, isPinned: false, isArchived: false, createdAt: Date.now() },
-                        ...prev.filter((c) => c.title !== newTitle),
-                      ]);
-                    }}
+                    onChatTitleUpdate={handleChatTitleUpdate}
+                    onSaveMessages={handleSaveMessages}
                   />
                 </motion.div>
               )}

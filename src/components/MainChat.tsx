@@ -19,27 +19,27 @@ import { SovaraHeroWatermark, SovaraRibbonLoader } from './SovaraLogo';
 import { MOCK_ACTIVE_CHAT_MESSAGES } from '../data/mockData';
 
 interface MainChatProps {
+  chatId: string;
   chatTitle: string;
+  initialMessages?: ChatMessage[];
   onOpenRightBar: (tab: 'activity' | 'sources') => void;
   onDownloadFile: (fileName: string) => void;
   sidebarOpen?: boolean;
-  onChatTitleUpdate?: (newTitle: string) => void;
+  onChatTitleUpdate?: (chatId: string, newTitle: string) => void;
+  onSaveMessages?: (chatId: string, messages: ChatMessage[]) => void;
 }
 
 export const MainChat: React.FC<MainChatProps> = ({
+  chatId,
   chatTitle,
+  initialMessages = [],
   onOpenRightBar,
   onDownloadFile,
   sidebarOpen = true,
   onChatTitleUpdate,
+  onSaveMessages,
 }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    // If it's the demo chat, start with the mock messages matching MainChat.svg
-    if (chatTitle !== 'New Chat') {
-      return MOCK_ACTIVE_CHAT_MESSAGES;
-    }
-    return [];
-  });
+  const [messages, setMessages] = useState<ChatMessage[]>(() => initialMessages);
 
   const [inputPrompt, setInputPrompt] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -58,15 +58,6 @@ export const MainChat: React.FC<MainChatProps> = ({
     };
   }, []);
 
-  // When chat title changes, switch conversation state
-  useEffect(() => {
-    if (chatTitle === 'New Chat') {
-      setMessages([]);
-    } else {
-      setMessages(MOCK_ACTIVE_CHAT_MESSAGES);
-    }
-  }, [chatTitle]);
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -75,17 +66,120 @@ export const MainChat: React.FC<MainChatProps> = ({
     scrollToBottom();
   }, [messages, isThinking, displayedText]);
 
+  const generateSmartResponse = (query: string): {
+    fullText: string;
+    duration: string;
+    sourcesCount: number;
+    searchesCount: number;
+    citation?: { title: string; snippet: string };
+  } => {
+    const q = query.toLowerCase();
+
+    if (q.includes('recipe') || q.includes('food') || q.includes('cook') || q.includes('paneer') || q.includes('bake')) {
+      return {
+        fullText: `Here is a chef-crafted guide for "${query}":
+
+• Preparation & Timing: 10 mins prep • 20 mins active cooking • Serves 3–4
+• Essential Ingredients: Ensure whole spices are freshly crushed and ingredients are brought to room temperature for uniform cooking.
+• Core Steps:
+  1. Base Infusion: Sauté aromatics in ghee/oil until translucent and fragrant.
+  2. Flavor Layering: Bloom ground spices on gentle heat to avoid burning.
+  3. Finishing Touch: Fold in fresh herbs and a hint of roasted kasuri methi or lemon zest for restaurant-grade balance.
+• Pro-Tip: Let the dish rest covered for 4 minutes before plating to allow the emulsion to settle.`,
+        duration: 'Worked for 22s',
+        sourcesCount: 4,
+        searchesCount: 6,
+      };
+    }
+
+    if (q.includes('code') || q.includes('react') || q.includes('python') || q.includes('function') || q.includes('error') || q.includes('api') || q.includes('typescript') || q.includes('bug')) {
+      return {
+        fullText: `Here is the engineering breakdown for "${query}":
+
+1. Root Cause & Architecture:
+   Ensured deterministic state transitions and avoided unnecessary re-renders or racing asynchronous operations.
+
+2. Implementation Pattern:
+\`\`\`typescript
+// Clean, isolated execution handler
+export async function executeTask(input: string): Promise<TaskResult> {
+  const sanitized = input.trim();
+  if (!sanitized) throw new Error('Empty task input');
+  
+  return {
+    status: 'success',
+    data: sanitized,
+    timestamp: Date.now()
+  };
+}
+\`\`\`
+
+3. Safety & Verification:
+   • Type safety enforced with standard TypeScript types
+   • Memory references cleaned on unmount to prevent leaks
+   • Local execution verified with invariant testing.`,
+        duration: 'Worked for 35s',
+        sourcesCount: 6,
+        searchesCount: 12,
+        citation: {
+          title: 'Software Design Systems & Clean Architecture Patterns',
+          snippet: 'Encapsulate mutating business logic within self-contained session controllers to prevent multi-tenant state collisions.',
+        },
+      };
+    }
+
+    if (q.includes('homework') || q.includes('math') || q.includes('calculus') || q.includes('physics') || q.includes('solve')) {
+      return {
+        fullText: `Solution & Step-by-Step Breakdown for "${query}":
+
+1. Problem Formalization:
+   Identify given boundary constraints, unknown variables, and governing equations.
+
+2. Analytical Derivation:
+   • Express the target quantity as a function of the single independent variable.
+   • Apply differential/algebraic rules systematically to determine critical inflection points.
+   • Verify second-order conditions to confirm extremum optimality.
+
+3. Final Verification:
+   The computed solution satisfies all original conservation laws and physical boundary conditions.`,
+        duration: 'Worked for 40s',
+        sourcesCount: 5,
+        searchesCount: 8,
+        citation: {
+          title: 'Applied Analytical Methods & Problem Solving Handbook',
+          snippet: 'Always check dimensional consistency across each term before evaluating final numerical approximations.',
+        },
+      };
+    }
+
+    return {
+      fullText: `Analysis complete for "${query}":
+
+• Primary Insights:
+  - Local context retrieved and synthesized with privacy preservation
+  - Evaluated key parameters and cross-referenced with your connected workspace
+  - All invariants validated for local execution
+
+• Synthesis:
+  1. Systematic breakdown addressing your specific query objectives
+  2. Identified optimization opportunities and structural recommendations
+  3. Artifacts and session history preserved for follow-up refinement.`,
+      duration: 'Worked for 28s',
+      sourcesCount: 7,
+      searchesCount: 15,
+      citation: {
+        title: 'Sovara Knowledge Index & Workspace Synthesis',
+        snippet: 'Local synthesis models cross-reference verified workspace artifacts while keeping conversation state entirely isolated.',
+      },
+    };
+  };
+
   const handleSendMessage = (textToSend?: string) => {
     const query = (textToSend || inputPrompt).trim();
     if (!query) return;
 
     if (thinkingTimeoutRef.current) clearTimeout(thinkingTimeoutRef.current);
     if (streamingIntervalRef.current) clearInterval(streamingIntervalRef.current);
-
-    if (chatTitle === 'New Chat' && onChatTitleUpdate) {
-      const generatedTitle = query.length > 28 ? query.slice(0, 28) + '...' : query;
-      onChatTitleUpdate(generatedTitle);
-    }
 
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -94,20 +188,23 @@ export const MainChat: React.FC<MainChatProps> = ({
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    onSaveMessages?.(chatId, newMessages);
     setInputPrompt('');
     setIsThinking(true);
+
+    if (chatTitle === 'New Chat' && onChatTitleUpdate) {
+      const generatedTitle = query.length > 28 ? query.slice(0, 28).trim() + '...' : query;
+      onChatTitleUpdate(chatId, generatedTitle);
+    }
+
+    const { fullText, duration, sourcesCount, searchesCount, citation } = generateSmartResponse(query);
 
     // Simulate intelligent Sovara response with authentic streaming
     thinkingTimeoutRef.current = setTimeout(() => {
       setIsThinking(false);
       const aiMsgId = `msg-${Date.now() + 1}`;
-      const fullText = `Analysis complete for "${query}". Here is what has been compiled:
-
-• Local context retrieved from connected Knowledge Vault files
-• Synthesized cross-reference analysis across 84 standard documentation guidelines
-• Verified invariants and ensured local execution safety
-• Output artifact generated and linked to session history`;
 
       const aiResponse: ChatMessage = {
         id: aiMsgId,
@@ -115,31 +212,30 @@ export const MainChat: React.FC<MainChatProps> = ({
         text: fullText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         meta: {
-          duration: 'Worked for 2m',
-          sourcesCount: 12,
-          searchesCount: 24,
+          duration,
+          sourcesCount,
+          searchesCount,
         },
         attachments: [
           {
-            name: 'Vendor_warrantyReport.pdf',
-            pages: 69,
-            description: 'Tabular comparison',
+            name: `${query.slice(0, 16).replace(/[^a-zA-Z0-9]/g, '_')}_Summary.pdf`,
+            pages: 4,
+            description: 'Workspace executive summary',
           },
         ],
-        citationQuote: {
-          title: 'Building a scalable cross-platform Design System',
-          snippet: 'The discussion around UI Design vs Brand Design has been a cause of major confusion for me when I was early in my design career. Even though I knew that brand designers usually create a logo, color palettes, typography and language choices (and much more), working with them was not always the most pleasant experience for me.',
-        },
+        citationQuote: citation,
         hasSources: true,
       };
 
-      setMessages((prev) => [...prev, aiResponse]);
+      const updatedWithAi = [...newMessages, aiResponse];
+      setMessages(updatedWithAi);
+      onSaveMessages?.(chatId, updatedWithAi);
       setStreamingMsgId(aiMsgId);
       setDisplayedText((prev) => ({ ...prev, [aiMsgId]: '' }));
 
       let index = 0;
-      const speed = 20;
-      const chunkSize = 5;
+      const speed = 18;
+      const chunkSize = 6;
 
       streamingIntervalRef.current = setInterval(() => {
         index += chunkSize;
@@ -154,7 +250,7 @@ export const MainChat: React.FC<MainChatProps> = ({
           }));
         }
       }, speed);
-    }, 1400);
+    }, 1100);
   };
 
   const handleCopy = (id: string, text: string) => {

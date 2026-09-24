@@ -1,4 +1,3 @@
-import { px } from 'motion';
 import React from 'react';
 
 interface SovaraLogoProps {
@@ -42,7 +41,7 @@ export const SovaraSidebarLogo: React.FC<SovaraLogoProps> = ({
   return (
     <div className={`flex items-center gap-2.5 select-none ${className}`}>
       {/* <SovaraSparkleMark size={iconSize} className="text-[#84e4d9]" /> */}
-      <img src="../public/asset/Logo_sidebar.svg" alt="" />
+      <img src="/asset/Logo_sidebar.svg" alt="Sovara" />
     </div>
   );
 };
@@ -95,7 +94,7 @@ export const SovaraHeroWatermark: React.FC<{ className?: string }> = ({ classNam
         className="font-serif-brand text-[52px] sm:text-[76px] md:text-[92px] lg:text-[104px] font-bold tracking-[0.24em] uppercase leading-none metallic-text drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
       >
         {/* SOVARA */}
-        <img src="../public/asset/HeroLogo_mainpage.svg" alt="" width={500}/>
+        <img src="/asset/HeroLogo_mainpage.svg" alt="Sovara" width={500}/>
       </div>
       {/* Subtle bottom specular flare */}
       <div className="w-48 sm:w-80 h-[1px] bg-gradient-to-r from-transparent via-[#7adfd4]/15 to-transparent mt-1" />
