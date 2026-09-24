@@ -1,3 +1,4 @@
+import { px } from 'motion';
 import React from 'react';
 
 interface SovaraLogoProps {
@@ -40,15 +41,8 @@ export const SovaraSidebarLogo: React.FC<SovaraLogoProps> = ({
 
   return (
     <div className={`flex items-center gap-2.5 select-none ${className}`}>
-      <SovaraSparkleMark size={iconSize} className="text-[#84e4d9]" />
-      {showText && (
-        <span 
-          className={`font-serif-brand font-bold tracking-[0.16em] text-white/95 uppercase ${textSize}`}
-          style={{ fontFamily: "'Cinzel', 'Playfair Display', serif" }}
-        >
-          SOVARA AI
-        </span>
-      )}
+      {/* <SovaraSparkleMark size={iconSize} className="text-[#84e4d9]" /> */}
+      <img src="../public/asset/Logo_sidebar.svg" alt="" />
     </div>
   );
 };
@@ -99,9 +93,9 @@ export const SovaraHeroWatermark: React.FC<{ className?: string }> = ({ classNam
     <div className={`relative flex flex-col items-center justify-center select-none pointer-events-none ${className}`}>
       <div 
         className="font-serif-brand text-[52px] sm:text-[76px] md:text-[92px] lg:text-[104px] font-bold tracking-[0.24em] uppercase leading-none metallic-text drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
-        style={{ fontFamily: "'Cinzel', 'Playfair Display', serif" }}
       >
-        SOVARA AI
+        {/* SOVARA */}
+        <img src="../public/asset/HeroLogo_mainpage.svg" alt="" width={500}/>
       </div>
       {/* Subtle bottom specular flare */}
       <div className="w-48 sm:w-80 h-[1px] bg-gradient-to-r from-transparent via-[#7adfd4]/15 to-transparent mt-1" />

@@ -228,31 +228,6 @@ export const MainChat: React.FC<MainChatProps> = ({
                   </button>
                 </div>
               </motion.div>
-
-              {/* Interactive Quick Prompts with gentle staggered entrance */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 15 }}
-                transition={{ delay: 0.15, duration: 0.3 }}
-                className="flex flex-wrap items-center justify-center gap-2 mt-4 max-w-xl px-2"
-              >
-                {[
-                  'Compare OISD-116 vs NFPA specs',
-                  'Summarize ISO-27001 criteria',
-                  'Review AWS Well-Architected pillar',
-                ].map((suggestion) => (
-                  <motion.button
-                    key={suggestion}
-                    whileHover={{ scale: 1.025, backgroundColor: '#161622', borderColor: '#323246' }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => handleSendMessage(suggestion)}
-                    className="px-3 py-1.5 rounded-full text-xs text-[#8f8f9e] hover:text-[#f4f4f5] bg-[#111116] border border-[#1e1e28] transition-colors shadow-xs"
-                  >
-                    {suggestion}
-                  </motion.button>
-                ))}
-              </motion.div>
             </div>
 
             {/* Bottom Footer with synchronized layout transition */}
