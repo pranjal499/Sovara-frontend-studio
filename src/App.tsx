@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { NavigationTab, VaultDocument, ArtifactItem } from './types';
-import { INITIAL_VAULT_DOCUMENTS, INITIAL_ARTIFACTS } from './data/mockData';
+import { motion, AnimatePresence } from 'motion/react';
+import { NavigationTab, VaultDocument, ArtifactItem, ChatSession } from './types';
+import { INITIAL_VAULT_DOCUMENTS, INITIAL_ARTIFACTS, RECENT_CHATS, INITIAL_CHAT_SESSIONS } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
 import { WindowBar } from './components/WindowBar';
 import { MainChat } from './components/MainChat';
@@ -14,6 +15,8 @@ import { ArtifactsView } from './components/ArtifactsView';
 import { RightBar } from './components/RightBar';
 import { SettingsModal } from './components/SettingsModal';
 import { Toast } from './components/Toast';
+import { Menu, Edit, Sparkles, Plus, BookOpen } from 'lucide-react';
+import { SovaraSidebarLogo } from './components/SovaraLogo';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('chat');
@@ -21,6 +24,8 @@ export default function App() {
   const [rightBarOpen, setRightBarOpen] = useState(false);
   const [rightBarTab, setRightBarTab] = useState<'activity' | 'sources'>('activity');
   const [activeChatTitle, setActiveChatTitle] = useState('Help me with homework');
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(INITIAL_CHAT_SESSIONS);
+  const [chatSessionId, setChatSessionId] = useState<string>(() => `chat-${Date.now()}`);
   
   // Data collections with CRUD capabilities
   const [vaultDocs, setVaultDocs] = useState<VaultDocument[]>(INITIAL_VAULT_DOCUMENTS);
@@ -98,15 +103,85 @@ export default function App() {
     setRightBarOpen(true);
   };
 
-  const handleSelectChat = (chatTitle: string) => {
-    setActiveChatTitle(chatTitle);
+  const handleRenameChat = (id: string, newTitle: string) => {
+    const target = chatSessions.find((c) => c.id === id);
+    setChatSessions((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c))
+    );
+    if (target && activeChatTitle === target.title) {
+      setActiveChatTitle(newTitle);
+    }
+    showToast(`Chat renamed to "${newTitle}"`);
+  };
+
+  const handlePinChat = (id: string) => {
+    setChatSessions((prev) =>
+      prev.map((c) => {
+        if (c.id === id) {
+          const nextPinned = !c.isPinned;
+          showToast(nextPinned ? 'Chat pinned to top' : 'Chat unpinned');
+          return { ...c, isPinned: nextPinned };
+        }
+        return c;
+      })
+    );
+  };
+
+  const handleArchiveChat = (id: string) => {
+    const target = chatSessions.find((c) => c.id === id);
+    if (!target) return;
+    const nextArchived = !target.isArchived;
+    setChatSessions((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, isArchived: nextArchived } : c))
+    );
+    showToast(nextArchived ? 'Chat moved to archive' : 'Chat restored from archive');
+    if (nextArchived && activeChatTitle === target.title) {
+      handleNewChat();
+    }
+  };
+
+  const handleDeleteChat = (id: string) => {
+    const target = chatSessions.find((c) => c.id === id);
+    setChatSessions((prev) => prev.filter((c) => c.id !== id));
+    showToast('Chat deleted');
+    if (target && activeChatTitle === target.title) {
+      handleNewChat();
+    }
+  };
+
+  const handleNewChat = () => {
+    setActiveChatTitle('New Chat');
+    setChatSessionId(`chat-${Date.now()}`);
     setActiveTab('chat');
+    setRightBarOpen(false);
     if (isMobile) setSidebarOpen(false);
+  };
+
+  const handleSelectChat = (chatTitle: string) => {
+    if (chatTitle === 'New Chat') {
+      handleNewChat();
+      return;
+    }
+    setActiveChatTitle(chatTitle);
+    setChatSessionId(`chat-${chatTitle}`);
+    setActiveTab('chat');
+    setRightBarOpen(false);
+    if (isMobile) setSidebarOpen(false);
+  };
+
+  const getMobileHeaderTitle = () => {
+    if (activeTab === 'chat') {
+      return activeChatTitle === 'New Chat' ? 'Sovara' : activeChatTitle;
+    }
+    if (activeTab === 'vault') {
+      return 'Knowledge Vault';
+    }
+    return 'Artifacts';
   };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0d] text-[#e4e4e7] antialiased">
-      {/* Collapsible Sidebar */}
+      {/* Collapsible Sidebar (Drawer on mobile, spring collapsing column on desktop) */}
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen((prev) => !prev)}
@@ -116,62 +191,178 @@ export default function App() {
           if (isMobile) setSidebarOpen(false);
         }}
         onSelectChat={handleSelectChat}
+        onNewChat={handleNewChat}
         onOpenSettings={() => setIsSettingsOpen(true)}
         activeChatTitle={activeChatTitle}
+        chatSessions={chatSessions}
+        onRenameChat={handleRenameChat}
+        onPinChat={handlePinChat}
+        onArchiveChat={handleArchiveChat}
+        onDeleteChat={handleDeleteChat}
         isMobile={isMobile}
       />
 
       {/* Main App Workspace */}
-      <div className="flex-1 flex h-full min-w-0 relative overflow-hidden">
-        {/* Collapsed sidebar trigger rail (≡ and ✏) when sidebar is closed */}
-        <WindowBar
-          sidebarOpen={sidebarOpen}
-          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-          onNewChat={() => handleSelectChat('New Chat')}
-          className="border-r border-[#1a1a22] bg-[#0c0c0f]"
-        />
+      <div className="flex-1 flex flex-col h-full min-w-0 relative overflow-hidden">
+        {/* Sleek Mobile Navigation Header (Shown on < 768px devices) */}
+        <header className="md:hidden flex items-center justify-between px-3.5 py-2.5 bg-[#0a0a0d] border-b border-[#181820] shrink-0 z-30 select-none">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-xl text-[#94949f] hover:text-white hover:bg-[#16161e] transition-colors active:scale-95 shrink-0"
+              title="Open menu"
+              aria-label="Open menu"
+            >
+              <Menu size={18} />
+            </button>
 
-        {/* Dynamic Viewport Content */}
-        <main className="flex-1 flex overflow-hidden relative">
-          {activeTab === 'chat' && (
-            <MainChat
-              chatTitle={activeChatTitle}
-              onOpenRightBar={handleOpenRightBar}
-              onDownloadFile={handleDownloadFile}
-              sidebarOpen={sidebarOpen}
-            />
-          )}
-
-          {activeTab === 'vault' && (
-            <KnowledgeVault
-              documents={vaultDocs}
-              onAddDocument={handleAddVaultDocument}
-              onUpdateDocument={handleUpdateVaultDocument}
-              onDeleteDocument={handleDeleteVaultDocument}
-              onDownloadFile={handleDownloadFile}
-            />
-          )}
-
-          {activeTab === 'artifacts' && (
-            <ArtifactsView
-              artifacts={artifacts}
-              onSelectChatReference={(chatRef) => {
-                setActiveChatTitle(chatRef);
+            <button 
+              onClick={() => {
                 setActiveTab('chat');
               }}
-              onDownloadFile={handleDownloadFile}
-              onDeleteArtifact={handleDeleteArtifact}
-            />
-          )}
+              className="flex items-center gap-2 min-w-0 text-left"
+            >
+              <span className="text-xs sm:text-sm font-semibold text-white tracking-tight truncate max-w-[160px] sm:max-w-xs">
+                {getMobileHeaderTitle()}
+              </span>
+            </button>
+          </div>
 
-          {/* Right Sliding Drawer for Activity & Sources */}
-          <RightBar
-            isOpen={rightBarOpen}
-            onClose={() => setRightBarOpen(false)}
-            defaultTab={rightBarTab}
-            isMobile={isMobile}
+          {/* Quick Header Actions */}
+          <div className="flex items-center gap-1 shrink-0">
+            {activeTab === 'chat' && (
+              <>
+                <button
+                  onClick={() => handleOpenRightBar('activity')}
+                  className="p-2 rounded-xl text-[#858592] hover:text-[#7adfd4] hover:bg-[#16161e] transition-colors active:scale-95"
+                  title="View activity"
+                  aria-label="View activity"
+                >
+                  <Sparkles size={16} />
+                </button>
+
+                <button
+                  onClick={handleNewChat}
+                  className="p-2 rounded-xl text-[#858592] hover:text-white hover:bg-[#16161e] transition-colors active:scale-95"
+                  title="New chat"
+                  aria-label="New chat"
+                >
+                  <Edit size={16} />
+                </button>
+              </>
+            )}
+
+            {activeTab === 'vault' && (
+              <button
+                onClick={handleNewChat}
+                className="p-2 rounded-xl text-[#858592] hover:text-white hover:bg-[#16161e] transition-colors active:scale-95"
+                title="New chat"
+              >
+                <Edit size={16} />
+              </button>
+            )}
+
+            {activeTab === 'artifacts' && (
+              <button
+                onClick={handleNewChat}
+                className="p-2 rounded-xl text-[#858592] hover:text-white hover:bg-[#16161e] transition-colors active:scale-95"
+                title="New chat"
+              >
+                <Edit size={16} />
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Workspace Body */}
+        <div className="flex-1 flex h-full min-w-0 relative overflow-hidden">
+          {/* Collapsed sidebar trigger rail (≡ and ✏) for Desktop */}
+          <WindowBar
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+            onNewChat={handleNewChat}
+            className="border-r border-[#1a1a22] bg-[#0c0c0f]"
           />
-        </main>
+
+          {/* Dynamic Viewport Content */}
+          <main className="flex-1 flex overflow-hidden relative">
+            <AnimatePresence mode="wait">
+              {activeTab === 'chat' && (
+                <motion.div
+                  key={chatSessionId}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex-1 flex overflow-hidden relative"
+                >
+                  <MainChat
+                    key={chatSessionId}
+                    chatTitle={activeChatTitle}
+                    onOpenRightBar={handleOpenRightBar}
+                    onDownloadFile={handleDownloadFile}
+                    sidebarOpen={sidebarOpen}
+                    onChatTitleUpdate={(newTitle) => {
+                      setActiveChatTitle(newTitle);
+                      setChatSessions((prev) => [
+                        { id: `chat-${Date.now()}`, title: newTitle, isPinned: false, isArchived: false, createdAt: Date.now() },
+                        ...prev.filter((c) => c.title !== newTitle),
+                      ]);
+                    }}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'vault' && (
+                <motion.div
+                  key="vault"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex-1 flex overflow-hidden relative"
+                >
+                  <KnowledgeVault
+                    documents={vaultDocs}
+                    onAddDocument={handleAddVaultDocument}
+                    onUpdateDocument={handleUpdateVaultDocument}
+                    onDeleteDocument={handleDeleteVaultDocument}
+                    onDownloadFile={handleDownloadFile}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'artifacts' && (
+                <motion.div
+                  key="artifacts"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex-1 flex overflow-hidden relative"
+                >
+                  <ArtifactsView
+                    artifacts={artifacts}
+                    onSelectChatReference={(chatRef) => {
+                      setActiveChatTitle(chatRef);
+                      setActiveTab('chat');
+                    }}
+                    onDownloadFile={handleDownloadFile}
+                    onDeleteArtifact={handleDeleteArtifact}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Right Sliding Drawer for Activity & Sources */}
+            <RightBar
+              isOpen={rightBarOpen}
+              onClose={() => setRightBarOpen(false)}
+              defaultTab={rightBarTab}
+              isMobile={isMobile}
+            />
+          </main>
+        </div>
       </div>
 
       {/* Settings Dialog */}

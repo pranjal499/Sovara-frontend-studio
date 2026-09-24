@@ -15,8 +15,7 @@ import {
   Calendar,
   Layers,
   Sparkles,
-  Info,
-  Filter
+  FileCheck
 } from 'lucide-react';
 import { VaultDocument } from '../types';
 import { DeleteModal } from './DeleteModal';
@@ -30,7 +29,6 @@ interface KnowledgeVaultProps {
 }
 
 type VaultViewMode = 'default' | 'view' | 'add' | 'edit';
-type CategoryFilter = 'ALL' | 'STANDARD' | 'RULEBOOK' | 'MANUAL' | 'SOP' | 'GUIDELINE';
 
 export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
   documents,
@@ -43,10 +41,11 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
     documents.length > 0 ? documents[0].id : null
   );
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('ALL');
   const [viewMode, setViewMode] = useState<VaultViewMode>(
     documents.length > 0 ? 'view' : 'default'
   );
+  // Mobile master-detail pane state ('list' shows files list, 'detail' shows doc view/form)
+  const [mobilePane, setMobilePane] = useState<'list' | 'detail'>('list');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Form states for Add / Edit
@@ -60,26 +59,23 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
 
   const filteredDocs = useMemo(() => {
     return documents.filter((d) => {
-      const matchesSearch =
-        d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.typeBadge.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.description.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesCategory =
-        activeCategory === 'ALL' ||
-        d.typeBadge.toUpperCase() === activeCategory;
-
-      return matchesSearch && matchesCategory;
+      const q = searchQuery.toLowerCase();
+      return (
+        d.name.toLowerCase().includes(q) ||
+        d.typeBadge.toLowerCase().includes(q) ||
+        d.description.toLowerCase().includes(q)
+      );
     });
-  }, [documents, searchQuery, activeCategory]);
+  }, [documents, searchQuery]);
 
   const handleStartAdd = () => {
     setFormName('');
     setFormType('STANDARD');
     setFormDesc('');
-    setFormFileName('Vendor_warrantyReport.pdf');
+    setFormFileName('New_Specification.pdf');
     setFormFileUploaded(false);
     setViewMode('add');
+    setMobilePane('detail');
   };
 
   const handleStartEdit = () => {
@@ -90,6 +86,13 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
     setFormFileName(selectedDoc.fileName);
     setFormFileUploaded(true);
     setViewMode('edit');
+    setMobilePane('detail');
+  };
+
+  const handleSelectDoc = (docId: string) => {
+    setSelectedDocId(docId);
+    setViewMode('view');
+    setMobilePane('detail');
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
@@ -99,12 +102,12 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
     if (viewMode === 'add') {
       const newDoc: Omit<VaultDocument, 'id'> = {
         name: formName.trim(),
-        pages: 84,
+        pages: 64,
         uploadedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
         typeBadge: formType.toUpperCase(),
         fileName: formFileName || 'Document_Attachment.pdf',
-        comparisonType: '84 pages • Tabular comparison',
-        description: formDesc.trim() || 'Comprehensive knowledge context document.',
+        comparisonType: '64 pages • Custom knowledge source',
+        description: formDesc.trim() || 'Knowledge context documentation.',
       };
       onAddDocument(newDoc);
       setViewMode('view');
@@ -138,125 +141,122 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
       } else {
         setSelectedDocId(null);
         setViewMode('default');
+        setMobilePane('list');
       }
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row h-full bg-[#09090c] overflow-hidden select-none">
-      {/* LEFT COLUMN: Clean Master Document Explorer */}
-      <aside className={`w-full md:w-[360px] lg:w-[400px] h-full flex flex-col bg-[#0b0b0f] border-r border-[#15151a] shrink-0 ${
-        viewMode !== 'default' && viewMode !== 'view' ? 'hidden md:flex' : 'flex'
+    <div className="flex-1 flex flex-col md:flex-row h-full w-full bg-[#09090b] overflow-hidden select-none relative">
+      {/* LEFT COLUMN: Vault Files Browser (Master List) */}
+      <aside className={`w-full md:w-[320px] lg:w-[360px] h-full flex-col bg-[#0b0b0e] md:border-r md:border-[#15151a] shrink-0 ${
+        mobilePane === 'list' ? 'flex' : 'hidden md:flex'
       }`}>
-        {/* Header section with minimal lines */}
-        <div className="p-5 pb-3 space-y-3.5">
+        {/* Header container */}
+        <div className="px-4 sm:px-5 pt-4 sm:pt-6 pb-3 space-y-3.5">
+          {/* Title & Counter */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-semibold text-white tracking-tight">
-                Knowledge Vault
-              </h1>
-              <p className="text-[12px] text-[#6b6b77] mt-0.5">
-                {documents.length} verified context source{documents.length === 1 ? '' : 's'}
-              </p>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-lg sm:text-xl md:text-[22px] font-bold text-white tracking-tight">
+                Vault Files
+              </h2>
+              <span className="text-[11px] sm:text-xs font-mono font-medium text-[#717182] px-2 py-0.5 rounded-md bg-[#14141c]">
+                {documents.length}
+              </span>
             </div>
 
             <button
               onClick={handleStartAdd}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16161e] hover:bg-[#20202b] text-[#7adfd4] hover:text-[#99ece4] text-xs font-medium transition-all shadow-sm active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#7adfd4] hover:text-[#9feee6] bg-[#121c1b] hover:bg-[#172725] border border-[#7adfd4]/25 transition-all active:scale-95 shadow-xs"
               title="Add document to vault"
             >
-              <Plus size={14} className="stroke-[2.5]" />
+              <Plus size={13} className="stroke-[2.5]" />
               <span>Add</span>
             </button>
           </div>
 
-          {/* Clean borderless search bar */}
+          {/* Minimal Search Input */}
           <div className="relative">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5a5a66]" />
+            <Search 
+              size={13} 
+              className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-150 ${
+                searchQuery ? 'text-[#7adfd4]' : 'text-[#565664]'
+              }`} 
+            />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filter by name, type or content..."
-              className="w-full bg-[#111116] border border-[#1a1a22] rounded-xl pl-9 pr-4 py-2 text-xs text-[#e4e4e7] placeholder-[#555562] focus:outline-none focus:border-[#7adfd4]/30 focus:bg-[#13131a] transition-all"
+              placeholder="Search files..."
+              className="w-full bg-[#121217] rounded-xl pl-9 pr-8 py-2 text-xs text-[#e4e4e7] placeholder-[#4f4f5a] focus:outline-none focus:ring-1 focus:ring-[#7adfd4]/30 focus:bg-[#14141a] transition-all"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#646470] hover:text-white"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-
-          {/* Subtle horizontal category filter pills */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none pt-0.5">
-            {(['ALL', 'STANDARD', 'RULEBOOK', 'MANUAL', 'SOP'] as CategoryFilter[]).map((cat) => {
-              const active = activeCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all shrink-0 ${
-                    active
-                      ? 'bg-[#1c1c26] text-white shadow-xs'
-                      : 'text-[#6c6c78] hover:text-[#b4b4be] hover:bg-[#121217]'
-                  }`}
+            <AnimatePresence>
+              {searchQuery && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.12 }}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-[#5a5a68] hover:text-white transition-colors"
+                  title="Clear search"
+                  aria-label="Clear search"
                 >
-                  {cat === 'ALL' ? 'All Files' : cat.charAt(0) + cat.slice(1).toLowerCase()}
-                </button>
-              );
-            })}
+                  <X size={12} />
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Documents List: Clean floating cards with smooth spacing, no harsh dividing lines */}
-        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+        {/* Minimal Files List */}
+        <div className="flex-1 overflow-y-auto px-2.5 sm:px-3 py-2 space-y-1 scrollbar-none">
           {filteredDocs.length === 0 ? (
-            <div className="h-60 flex flex-col items-center justify-center p-6 text-center text-[#636370]">
-              <FileText size={28} className="stroke-[1.5] text-[#33333d] mb-2" />
-              <div className="text-xs font-medium text-[#9999a6]">No matching documents</div>
-              <div className="text-[11px] text-[#555562] mt-0.5">Try searching with a different term</div>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
+              className="h-56 flex flex-col items-center justify-center px-4 py-8 text-center text-[#555562]"
+            >
+              <FileText size={22} className="stroke-[1.5] text-[#33333d] mb-2" />
+              <div className="text-xs text-[#80808c] font-medium">No matching files</div>
+              <div className="text-[11px] text-[#555562] mt-0.5">Try searching with another keyword</div>
+            </motion.div>
           ) : (
             filteredDocs.map((doc) => {
               const isSelected = selectedDocId === doc.id;
               return (
                 <button
                   key={doc.id}
-                  onClick={() => {
-                    setSelectedDocId(doc.id);
-                    setViewMode('view');
-                  }}
-                  className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 relative group ${
+                  onClick={() => handleSelectDoc(doc.id)}
+                  className={`w-full text-left px-3.5 py-3 rounded-xl transition-all flex items-start gap-3 group relative active:scale-[0.99] ${
                     isSelected
-                      ? 'bg-[#15151e] text-white shadow-sm ring-1 ring-[#7adfd4]/25'
-                      : 'text-[#a1a1aa] hover:bg-[#111116] hover:text-[#e4e4e7]'
+                      ? 'bg-[#15151e] text-white shadow-xs border border-[#222230]'
+                      : 'text-[#8e8e98] hover:bg-[#111116] hover:text-[#d0d0d8] border border-transparent'
                   }`}
                 >
-                  {/* Subtle document icon */}
-                  <div className={`mt-0.5 p-2 rounded-lg shrink-0 transition-colors ${
-                    isSelected
-                      ? 'bg-[#1d2228] text-[#7adfd4]'
-                      : 'bg-[#131318] text-[#636372] group-hover:text-[#a0a0b0]'
-                  }`}>
-                    <FileText size={15} />
-                  </div>
+                  <FileText 
+                    size={15} 
+                    className={`shrink-0 mt-0.5 transition-colors ${
+                      isSelected ? 'text-[#7adfd4]' : 'text-[#484854] group-hover:text-[#888896]'
+                    }`} 
+                  />
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className={`text-[13px] font-medium truncate ${isSelected ? 'text-white' : 'text-[#d0d0d8]'}`}>
-                        {doc.name}
-                      </span>
+                    <div className={`text-[12.5px] font-medium leading-snug truncate ${
+                      isSelected ? 'text-white' : 'text-[#c8c8d2] group-hover:text-white'
+                    }`}>
+                      {doc.name}
                     </div>
 
-                    <div className="flex items-center gap-2 text-[11px] text-[#656573]">
-                      <span className="font-mono text-[10px] uppercase px-1.5 py-0.2 rounded bg-[#171720] text-[#8e8e9c]">
+                    <div className="text-[11px] text-[#595968] mt-1.5 flex items-center gap-2">
+                      <span className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#161620] text-[#717180]">
                         {doc.typeBadge}
                       </span>
                       <span>•</span>
-                      <span>{doc.pages} pages</span>
+                      <span>{doc.pages}p</span>
+                      <span>•</span>
+                      <span className="truncate">{doc.uploadedDate}</span>
                     </div>
                   </div>
                 </button>
@@ -266,330 +266,376 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
         </div>
       </aside>
 
-      {/* RIGHT COLUMN: Professional Content Canvas */}
-      <main className={`flex-1 h-full overflow-y-auto p-6 md:p-10 lg:p-12 ${
-        viewMode !== 'default' && viewMode !== 'view' ? 'flex' : 'hidden md:flex'
-      } flex-col bg-[#09090c]`}>
-        {/* STATE 1: Empty / Default canvas */}
-        {viewMode === 'default' && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto">
-            <div className="w-14 h-14 rounded-2xl bg-[#121218] flex items-center justify-center text-[#7adfd4] mb-4">
-              <Sparkles size={24} />
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-2 tracking-tight">
-              Knowledge Context Vault
-            </h2>
-            <p className="text-xs text-[#71717d] leading-relaxed mb-6">
-              Add manuals, rulebooks, architectural blueprints, and standards to give Sovara domain expertise for personalized reasoning.
-            </p>
-            <button
-              onClick={handleStartAdd}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#7adfd4] hover:bg-[#6bd0c5] text-black text-xs font-semibold transition-all shadow-md shadow-[#7adfd4]/10 active:scale-95"
+      {/* RIGHT CANVAS: Document Detail / Form View */}
+      <main className={`flex-1 h-full overflow-y-auto px-4 sm:px-8 md:px-10 lg:px-14 py-5 sm:py-8 md:py-10 flex-col bg-[#09090b] ${
+        mobilePane === 'detail' ? 'flex' : 'hidden md:flex'
+      }`}>
+        <AnimatePresence mode="wait">
+          {/* Default / Empty State */}
+          {viewMode === 'default' && (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex-1 flex flex-col items-center justify-center text-center max-w-sm mx-auto px-4 py-12"
             >
-              <Plus size={15} />
-              <span>Add first document</span>
-            </button>
-          </div>
-        )}
-
-        {/* STATE 2: Document Inspection View */}
-        {viewMode === 'view' && selectedDoc && (
-          <div className="max-w-3xl w-full mx-auto space-y-7">
-            {/* Top Toolbar: Clean, distraction-free actions */}
-            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-xl bg-[#121217] flex items-center justify-center text-[#7adfd4] mb-4">
+                <Sparkles size={20} />
+              </div>
+              <h2 className="text-base font-semibold text-white mb-1.5 tracking-tight">
+                Knowledge Context Vault
+              </h2>
+              <p className="text-xs text-[#6e6e7c] leading-relaxed mb-6">
+                Select a file from the sidebar to inspect its parameters, or upload manuals and standards for grounded reasoning.
+              </p>
               <button
-                onClick={() => setViewMode('default')}
-                className="md:hidden flex items-center gap-1.5 text-xs text-[#8c8c99] hover:text-white"
+                onClick={handleStartAdd}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#7adfd4] hover:bg-[#6bd0c5] text-black text-xs font-semibold transition-all active:scale-95 shadow-sm shadow-[#7adfd4]/10"
               >
-                <ArrowLeft size={14} />
-                <span>Documents</span>
+                <Plus size={14} className="stroke-[2.5]" />
+                <span>Add Document</span>
               </button>
+            </motion.div>
+          )}
 
-              <div className="flex items-center gap-2 ml-auto">
+          {/* View Document State */}
+          {viewMode === 'view' && selectedDoc && (
+            <motion.div
+              key={selectedDoc.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="max-w-2xl w-full mx-auto space-y-5 sm:space-y-7"
+            >
+              {/* Minimal Action Toolbar */}
+              <div className="flex items-center justify-between pb-1">
+                {/* Back to Files List on Mobile */}
                 <button
-                  onClick={handleStartEdit}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14141a] hover:bg-[#1a1a24] text-xs font-medium text-[#d4d4dc] hover:text-white transition-all"
-                  title="Edit document details"
+                  onClick={() => setMobilePane('list')}
+                  className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#14141c] text-xs font-medium text-[#c4c4d0] hover:text-white transition-colors"
                 >
-                  <Edit3 size={13} className="text-[#8e8e9e]" />
-                  <span>Edit</span>
+                  <ArrowLeft size={14} />
+                  <span>Files</span>
                 </button>
 
-                <button
-                  onClick={() => setIsDeleteModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14141a] hover:bg-[#201114] text-xs font-medium text-[#8f8f9e] hover:text-[#f87171] transition-all"
-                  title="Remove document from vault"
-                >
-                  <Trash2 size={13} />
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Document Title & Badge Metadata */}
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-semibold tracking-wider uppercase bg-[#181824] text-[#7adfd4]">
-                  {selectedDoc.typeBadge}
-                </span>
-                <span className="text-xs text-[#5f5f6d] flex items-center gap-1">
-                  <Calendar size={12} />
-                  Uploaded on {selectedDoc.uploadedDate}
-                </span>
-                <span className="text-[#3b3b44]">•</span>
-                <span className="text-xs text-[#5f5f6d] flex items-center gap-1">
-                  <Layers size={12} />
-                  {selectedDoc.pages} pages verified
-                </span>
-              </div>
-
-              <h2 className="text-2xl font-semibold text-white tracking-tight leading-snug">
-                {selectedDoc.name}
-              </h2>
-            </div>
-
-            {/* File Attachment Card: Clean, modern card */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-[#111116] hover:bg-[#13131a] transition-colors">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="p-2.5 rounded-xl bg-[#171920] text-[#7adfd4] shrink-0">
-                  <FileText size={20} />
+                <div className="text-[11px] font-mono tracking-wider uppercase text-[#5a5a66] hidden md:block">
+                  Vault / {selectedDoc.typeBadge}
                 </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-white truncate">
-                    {selectedDoc.fileName}
-                  </div>
-                  <div className="text-xs text-[#6a6a78] mt-0.5">
-                    {selectedDoc.comparisonType || 'Standard specification • Cross-indexed'}
-                  </div>
+
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => onDownloadFile(selectedDoc.fileName)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#8e8e98] hover:text-white hover:bg-[#14141a] transition-all"
+                    title="Download attachment"
+                  >
+                    <Download size={13} />
+                    <span className="hidden sm:inline">Download</span>
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleStartEdit}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#8e8e98] hover:text-white hover:bg-[#14141a] transition-all"
+                    title="Edit metadata"
+                  >
+                    <Edit3 size={13} />
+                    <span className="hidden sm:inline">Edit</span>
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => setIsDeleteModalOpen(true)}
+                    className="p-1.5 rounded-lg text-[#666672] hover:text-[#f87171] hover:bg-[#1a1114] transition-all ml-1"
+                    title="Delete file"
+                  >
+                    <Trash2 size={13} />
+                  </motion.button>
                 </div>
               </div>
 
-              <button
-                onClick={() => onDownloadFile(selectedDoc.fileName)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#181822] hover:bg-[#222230] text-xs font-medium text-white transition-all shrink-0 ml-3"
-              >
-                <Download size={13} className="text-[#7adfd4]" />
-                <span>Download</span>
-              </button>
-            </div>
+              {/* Document Title & Meta Line */}
+              <div className="space-y-2.5">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-white tracking-tight leading-snug">
+                  {selectedDoc.name}
+                </h2>
 
-            {/* Document Context / Description */}
-            <div className="space-y-2.5">
-              <div className="text-xs font-medium text-[#7a7a88] tracking-wide uppercase flex items-center gap-1.5">
-                <Info size={13} />
-                <span>Description & AI Context</span>
-              </div>
-              <div className="p-5 rounded-xl bg-[#111115] text-[13.5px] leading-relaxed text-[#c6c6d0] font-normal">
-                {selectedDoc.description}
-              </div>
-            </div>
-
-            {/* Context Insights Pill Note */}
-            <div className="p-3.5 rounded-xl bg-[#0f1418] text-xs text-[#8ab4b0] flex items-center gap-2.5">
-              <Sparkles size={15} className="text-[#7adfd4] shrink-0" />
-              <span>Available in real-time chat reasoning across all queries and artifact workflows.</span>
-            </div>
-          </div>
-        )}
-
-        {/* STATE 3: Add Document Form */}
-        {viewMode === 'add' && (
-          <form onSubmit={handleSaveForm} className="max-w-2xl w-full mx-auto space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-white tracking-tight">
-                Add Knowledge Document
-              </h2>
-              <p className="text-xs text-[#6e6e7c] mt-1">
-                Upload context to enhance model accuracy with specific rulebooks and specifications.
-              </p>
-            </div>
-
-            {/* Title */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[#9a9aa8]">
-                Document Name
-              </label>
-              <input
-                type="text"
-                required
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder="e.g. ISO-27001 Security Standard Specification"
-                className="w-full bg-[#111116] border border-[#1b1b24] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#50505d] focus:outline-none focus:border-[#7adfd4]/40 transition-colors"
-              />
-            </div>
-
-            {/* File dropzone & type selector */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div 
-                onClick={() => setFormFileUploaded(true)}
-                className={`flex items-center gap-3 p-3.5 rounded-xl transition-all cursor-pointer ${
-                  formFileUploaded 
-                    ? 'bg-[#101b1a] text-[#7adfd4]'
-                    : 'bg-[#111116] hover:bg-[#14141c] text-[#8e8e9c]'
-                }`}
-              >
-                <div className="p-2 rounded-lg bg-[#161622] text-[#7adfd4]">
-                  <UploadCloud size={18} />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-white truncate">
-                    {formFileUploaded ? formFileName : 'Choose attachment'}
-                  </div>
-                  <div className="text-[11px] text-[#61616f]">
-                    PDF, DOCX, TXT up to 100MB
-                  </div>
-                </div>
-              </div>
-
-              {/* Category Selector */}
-              <div className="relative">
-                <select
-                  value={formType}
-                  onChange={(e) => setFormType(e.target.value)}
-                  className="w-full h-full bg-[#111116] border border-[#1b1b24] rounded-xl px-4 py-2.5 text-xs text-white appearance-none focus:outline-none focus:border-[#7adfd4]/40 transition-colors"
-                >
-                  <option value="STANDARD">Standard</option>
-                  <option value="RULEBOOK">Rulebook</option>
-                  <option value="MANUAL">Manual</option>
-                  <option value="SOP">SOP</option>
-                  <option value="GUIDELINE">Guideline</option>
-                </select>
-                <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#686875] pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[#9a9aa8]">
-                Context Description
-              </label>
-              <textarea
-                required
-                rows={5}
-                value={formDesc}
-                onChange={(e) => setFormDesc(e.target.value)}
-                placeholder="Summarize the key directives, regulations, or tables included in this file..."
-                className="w-full bg-[#111116] border border-[#1b1b24] rounded-xl p-4 text-xs md:text-sm text-white placeholder-[#50505d] focus:outline-none focus:border-[#7adfd4]/40 transition-colors leading-relaxed"
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="submit"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#7adfd4] hover:bg-[#6bd0c5] text-black text-xs font-semibold transition-all shadow-md shadow-[#7adfd4]/10 active:scale-98"
-              >
-                <Check size={14} className="stroke-[2.5]" />
-                <span>Save to Vault</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-xl bg-[#14141a] hover:bg-[#1a1a24] text-[#8e8e9c] hover:text-white text-xs font-medium transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* STATE 4: Edit Document Form */}
-        {viewMode === 'edit' && selectedDoc && (
-          <form onSubmit={handleSaveForm} className="max-w-2xl w-full mx-auto space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-white tracking-tight">
-                Edit Knowledge Document
-              </h2>
-              <p className="text-xs text-[#6e6e7c] mt-1">
-                Update document metadata and context description.
-              </p>
-            </div>
-
-            {/* Title */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[#9a9aa8]">
-                Document Name
-              </label>
-              <input
-                type="text"
-                required
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                className="w-full bg-[#111116] border border-[#1b1b24] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#7adfd4]/40 transition-colors"
-              />
-            </div>
-
-            {/* File info + Category Dropdown */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-[#111116]">
-                <div className="flex items-center gap-2.5 truncate">
-                  <FileText size={16} className="text-[#7adfd4] shrink-0" />
-                  <span className="text-xs font-medium text-white truncate">
-                    {formFileName}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-[#5e5e6b]">
+                  <span className="flex items-center gap-1 text-[#7adfd4] text-[11px] font-medium">
+                    <FileCheck size={13} />
+                    Active Context
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <Calendar size={12} />
+                    {selectedDoc.uploadedDate}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <Layers size={12} />
+                    {selectedDoc.pages} pages
                   </span>
                 </div>
+              </div>
+
+              {/* Attachment Strip */}
+              <motion.div 
+                whileHover={{ borderColor: '#2b2b38', backgroundColor: '#13131a' }}
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-[#111115] border border-[#1b1b24] transition-colors gap-2 sm:gap-0 my-2 shadow-xs"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText size={16} className="text-[#7adfd4] shrink-0" />
+                  <span className="text-xs font-medium text-white/90 truncate">
+                    {selectedDoc.fileName}
+                  </span>
+                </div>
+                <span className="text-[11px] text-[#555562] font-mono shrink-0 sm:ml-3">
+                  {selectedDoc.comparisonType || 'Indexed PDF'}
+                </span>
+              </motion.div>
+
+              {/* Document Context Description */}
+              <div className="space-y-2.5 pt-2">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-[#555562]">
+                  Context & Directives
+                </div>
+                <p className="text-xs sm:text-[13px] leading-relaxed text-[#b4b4bf] whitespace-pre-line font-normal">
+                  {selectedDoc.description}
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Add Document State */}
+          {viewMode === 'add' && (
+            <motion.form
+              key="add-form"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              onSubmit={handleSaveForm}
+              className="max-w-xl w-full mx-auto space-y-5 sm:space-y-6 py-2"
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight">
+                    Add Document
+                  </h2>
+                  <p className="text-xs text-[#6e6e7c]">
+                    Upload context files for reference in chat queries.
+                  </p>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => onDownloadFile(formFileName)}
-                  className="p-1 text-[#71717a] hover:text-white"
-                  title="Download file"
+                  onClick={() => setMobilePane('list')}
+                  className="md:hidden flex items-center gap-1 text-xs text-[#71717e] hover:text-white p-1.5"
                 >
-                  <Download size={13} />
+                  <ArrowLeft size={14} />
+                  <span>Files</span>
                 </button>
               </div>
 
-              <div className="relative">
-                <select
-                  value={formType}
-                  onChange={(e) => setFormType(e.target.value)}
-                  className="w-full h-full bg-[#111116] border border-[#1b1b24] rounded-xl px-4 py-2.5 text-xs text-white appearance-none focus:outline-none focus:border-[#7adfd4]/40 transition-colors"
-                >
-                  <option value="STANDARD">Standard</option>
-                  <option value="RULEBOOK">Rulebook</option>
-                  <option value="MANUAL">Manual</option>
-                  <option value="SOP">SOP</option>
-                  <option value="GUIDELINE">Guideline</option>
-                </select>
-                <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#686875] pointer-events-none" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[#888896]">
+                  File Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. ISO-27001 Security Standard"
+                  className="w-full bg-[#111115] rounded-xl px-4 py-2.5 text-xs text-white placeholder-[#4c4c58] focus:outline-none focus:ring-1 focus:ring-[#7adfd4]/40 transition-all"
+                />
               </div>
-            </div>
 
-            {/* Description */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[#9a9aa8]">
-                Context Description
-              </label>
-              <textarea
-                required
-                rows={5}
-                value={formDesc}
-                onChange={(e) => setFormDesc(e.target.value)}
-                className="w-full bg-[#111116] border border-[#1b1b24] rounded-xl p-4 text-xs md:text-sm text-white focus:outline-none focus:border-[#7adfd4]/40 transition-colors leading-relaxed"
-              />
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div 
+                  onClick={() => setFormFileUploaded(true)}
+                  className={`flex items-center gap-3 p-3.5 rounded-xl cursor-pointer transition-all ${
+                    formFileUploaded 
+                      ? 'bg-[#101918] text-[#7adfd4]' 
+                      : 'bg-[#111115] hover:bg-[#14141a] text-[#888896]'
+                  }`}
+                >
+                  <UploadCloud size={16} className="text-[#7adfd4] shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-white truncate">
+                      {formFileUploaded ? formFileName : 'Attach file'}
+                    </div>
+                    <div className="text-[10px] text-[#555562]">PDF, DOCX, TXT</div>
+                  </div>
+                </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="submit"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#7adfd4] hover:bg-[#6bd0c5] text-black text-xs font-semibold transition-all shadow-md shadow-[#7adfd4]/10 active:scale-98"
-              >
-                <Check size={14} className="stroke-[2.5]" />
-                <span>Save Changes</span>
-              </button>
+                <div className="relative">
+                  <select
+                    value={formType}
+                    onChange={(e) => setFormType(e.target.value)}
+                    className="w-full h-full bg-[#111115] rounded-xl px-3.5 py-2.5 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-[#7adfd4]/40"
+                  >
+                    <option value="STANDARD">Standard</option>
+                    <option value="RULEBOOK">Rulebook</option>
+                    <option value="MANUAL">Manual</option>
+                    <option value="SOP">SOP</option>
+                    <option value="GUIDELINE">Guideline</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#555562] pointer-events-none" />
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={handleCancelForm}
-                className="px-4 py-2.5 rounded-xl bg-[#14141a] hover:bg-[#1a1a24] text-[#8e8e9c] hover:text-white text-xs font-medium transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[#888896]">
+                  Context Summary
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  placeholder="Describe key directives, policies, or domain specifications..."
+                  className="w-full bg-[#111115] rounded-xl p-3.5 text-xs text-white placeholder-[#4c4c58] focus:outline-none focus:ring-1 focus:ring-[#7adfd4]/40 leading-relaxed"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#7adfd4] hover:bg-[#6bd0c5] text-black text-xs font-semibold transition-all active:scale-95 shadow-sm shadow-[#7adfd4]/10"
+                >
+                  <Check size={13} className="stroke-[2.5]" />
+                  <span>Save</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCancelForm}
+                  className="px-4 py-2.5 rounded-xl bg-[#14141a] hover:bg-[#1a1a22] text-[#888896] hover:text-white text-xs font-medium transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.form>
+          )}
+
+          {/* Edit Document State */}
+          {viewMode === 'edit' && selectedDoc && (
+            <motion.form
+              key="edit-form"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              onSubmit={handleSaveForm}
+              className="max-w-xl w-full mx-auto space-y-5 sm:space-y-6 py-2"
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight">
+                    Edit Document
+                  </h2>
+                  <p className="text-xs text-[#6e6e7c]">
+                    Update document details and specifications.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMobilePane('list')}
+                  className="md:hidden flex items-center gap-1 text-xs text-[#71717e] hover:text-white p-1.5"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Files</span>
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[#888896]">
+                  File Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full bg-[#111115] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#7adfd4]/40 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[#111115]">
+                  <div className="flex items-center gap-2.5 truncate">
+                    <FileText size={15} className="text-[#7adfd4] shrink-0" />
+                    <span className="text-xs font-medium text-white truncate">
+                      {formFileName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onDownloadFile(formFileName)}
+                    className="p-1.5 text-[#666672] hover:text-white rounded-md"
+                    title="Download file"
+                  >
+                    <Download size={13} />
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={formType}
+                    onChange={(e) => setFormType(e.target.value)}
+                    className="w-full h-full bg-[#111115] rounded-xl px-3.5 py-2.5 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-[#7adfd4]/40"
+                  >
+                    <option value="STANDARD">Standard</option>
+                    <option value="RULEBOOK">Rulebook</option>
+                    <option value="MANUAL">Manual</option>
+                    <option value="SOP">SOP</option>
+                    <option value="GUIDELINE">Guideline</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#555562] pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[#888896]">
+                  Context Summary
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  className="w-full bg-[#111115] rounded-xl p-3.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#7adfd4]/40 leading-relaxed"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#7adfd4] hover:bg-[#6bd0c5] text-black text-xs font-semibold transition-all active:scale-95 shadow-sm shadow-[#7adfd4]/10"
+                >
+                  <Check size={13} className="stroke-[2.5]" />
+                  <span>Save Changes</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCancelForm}
+                  className="px-4 py-2.5 rounded-xl bg-[#14141a] hover:bg-[#1a1a22] text-[#888896] hover:text-white text-xs font-medium transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.form>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Delete Confirmation Modal */}

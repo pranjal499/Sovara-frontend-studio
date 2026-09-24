@@ -28,7 +28,7 @@ export const WindowBar: React.FC<WindowBarProps> = ({
             stiffness: 280,
             mass: 0.8,
           }}
-          className={`flex flex-col items-center gap-3 py-4 px-2 text-[#71717a] select-none z-30 shrink-0 overflow-hidden ${className}`}
+          className={`hidden md:flex flex-col items-center gap-3 py-4 px-2 text-[#71717a] select-none z-30 shrink-0 overflow-hidden ${className}`}
         >
           <button
             onClick={onToggleSidebar}

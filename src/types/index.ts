@@ -58,3 +58,11 @@ export interface CitationItem {
   sourceTitle: string;
   content: string;
 }
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  createdAt?: number;
+}

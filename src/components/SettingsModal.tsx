@@ -25,21 +25,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="relative z-10 w-full max-w-lg bg-[#0e0e12] border border-[#24242e] rounded-2xl p-6 shadow-2xl select-none"
+            className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-[#0e0e12] border border-[#24242e] rounded-2xl p-4 sm:p-6 shadow-2xl select-none scrollbar-none"
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-[#1c1c24]">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#1c1c24]">
               <div className="flex items-center gap-2.5">
                 <div className="p-1.5 rounded-lg bg-[#181822] text-[#7adfd4]">
                   <Sparkles size={16} />
                 </div>
-                <h3 className="text-base font-bold text-white tracking-tight">
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
                   Sovara Settings
                 </h3>
               </div>
               <button
                 onClick={onClose}
-                className="p-1 rounded-lg text-[#71717a] hover:text-white hover:bg-[#1a1a22] transition-colors"
+                className="p-1.5 rounded-lg text-[#71717a] hover:text-white hover:bg-[#1a1a22] transition-colors"
               >
                 <X size={16} />
               </button>
@@ -48,17 +48,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             {/* Content */}
             <div className="py-4 space-y-4 text-xs">
               {/* Profile Card */}
-              <div className="p-3.5 rounded-xl bg-[#14141a] border border-[#202028] flex items-center justify-between">
+              <div className="p-3 sm:p-3.5 rounded-xl bg-[#14141a] border border-[#202028] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#1c1c26] border border-[#2f2f3d] flex items-center justify-center font-bold text-white text-sm">
+                  <div className="w-9 sm:w-10 h-9 sm:h-10 rounded-full bg-[#1c1c26] border border-[#2f2f3d] flex items-center justify-center font-bold text-white text-xs sm:text-sm shrink-0">
                     AM
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-white">Arpit Maaal</div>
-                    <div className="text-xs text-[#71717a]">Senior intern • arpit.maaal@sovara.local</div>
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-semibold text-white truncate">Arpit Maaal</div>
+                    <div className="text-[11px] sm:text-xs text-[#71717a] truncate">Senior intern • arpit.maaal@sovara.local</div>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[11px] bg-[#162723] text-[#7adfd4] border border-[#23453e]">
+                <span className="px-2.5 py-1 rounded-full text-[10.5px] sm:text-[11px] bg-[#162723] text-[#7adfd4] border border-[#23453e] self-start sm:self-auto">
                   Active Workspace
                 </span>
               </div>
