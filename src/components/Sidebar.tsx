@@ -42,14 +42,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center justify-between px-2 mb-6">
           <button 
             onClick={() => onSelectTab('chat')}
-            className="flex items-center gap-2 hover:opacity-85 transition-opacity text-left"
+            className="flex items-center gap-2 hover:opacity-85 transition-opacity text-left active:scale-[0.98]"
           >
             <SovaraSidebarLogo size="md" />
           </button>
           
           <button
             onClick={onToggle}
-            className="p-1.5 rounded-lg text-[#858591] hover:text-white hover:bg-[#1a1a20] transition-colors"
+            className="p-1.5 rounded-lg text-[#858591] hover:text-white hover:bg-[#1a1a20] transition-colors active:scale-95"
             title="Collapse sidebar"
             aria-label="Collapse sidebar"
           >
@@ -64,7 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onSelectTab('chat');
               onSelectChat('New Chat');
             }}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-[#c4c4cc] hover:text-white hover:bg-[#18181e] transition-all group"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-[#c4c4cc] hover:text-white hover:bg-[#18181e] transition-all group active:scale-[0.99]"
           >
             <Edit size={16} className="text-[#9999a5] group-hover:text-white transition-colors" />
             <span>New chat</span>
@@ -72,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button
             onClick={() => onSelectTab('vault')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all active:scale-[0.99] ${
               activeTab === 'vault'
                 ? 'bg-[#1a1a20] text-white shadow-sm border border-[#2a2a34]'
                 : 'text-[#c4c4cc] hover:text-white hover:bg-[#18181e]'
@@ -87,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button
             onClick={() => onSelectTab('artifacts')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all active:scale-[0.99] ${
               activeTab === 'artifacts'
                 ? 'bg-[#1a1a20] text-white shadow-sm border border-[#2a2a34]'
                 : 'text-[#c4c4cc] hover:text-white hover:bg-[#18181e]'
@@ -116,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onSelectTab('chat');
                     onSelectChat(chat);
                   }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-[13px] transition-all truncate block ${
+                  className={`w-full text-left px-3 py-2 rounded-lg text-[13px] transition-all truncate block active:scale-[0.99] ${
                     isCurrent
                       ? 'text-white bg-[#17171d] font-medium'
                       : 'text-[#a1a1aa] hover:text-white hover:bg-[#141419]'
@@ -181,7 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
-              transition={{ type: 'spring', damping: 26, stiffness: 300 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="relative z-10 h-full"
             >
               {content}
@@ -192,7 +192,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
   }
 
-  // Desktop smooth collapsing sidebar
+  // Desktop smooth calibrated spring collapsing sidebar
   return (
     <AnimatePresence initial={false}>
       {isOpen && (
@@ -200,10 +200,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
           initial={{ width: 0, opacity: 0 }}
           animate={{ width: 256, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
-          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          transition={{
+            type: 'spring',
+            damping: 30,
+            stiffness: 280,
+            mass: 0.8,
+          }}
           className="h-full shrink-0 overflow-hidden z-20"
         >
-          {content}
+          <motion.div
+            initial={{ x: -40, opacity: 0.5 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -40, opacity: 0 }}
+            transition={{
+              type: 'spring',
+              damping: 30,
+              stiffness: 280,
+              mass: 0.8,
+            }}
+            className="h-full w-64"
+          >
+            {content}
+          </motion.div>
         </motion.aside>
       )}
     </AnimatePresence>

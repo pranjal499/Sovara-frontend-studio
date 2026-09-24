@@ -138,6 +138,7 @@ export default function App() {
               chatTitle={activeChatTitle}
               onOpenRightBar={handleOpenRightBar}
               onDownloadFile={handleDownloadFile}
+              sidebarOpen={sidebarOpen}
             />
           )}
 

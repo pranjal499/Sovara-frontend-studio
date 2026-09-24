@@ -21,12 +21,14 @@ interface MainChatProps {
   chatTitle: string;
   onOpenRightBar: (tab: 'activity' | 'sources') => void;
   onDownloadFile: (fileName: string) => void;
+  sidebarOpen?: boolean;
 }
 
 export const MainChat: React.FC<MainChatProps> = ({
   chatTitle,
   onOpenRightBar,
   onDownloadFile,
+  sidebarOpen = true,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     // If it's the demo chat, start with the mock messages matching MainChat.svg
@@ -119,24 +121,64 @@ export const MainChat: React.FC<MainChatProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0a0a0d] relative overflow-hidden select-text">
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-16 pt-6 pb-36">
+      <div className={`flex-1 overflow-y-auto px-4 md:px-8 lg:px-16 ${isHeroState ? 'h-full flex flex-col' : 'pt-6 pb-36'}`}>
         {isHeroState ? (
-          /* Initial Hero State matching MainChat-Hero in SVG */
-          <div className="min-h-[75vh] flex flex-col items-center justify-center max-w-3xl mx-auto text-center px-4">
+          /* Initial Hero State with calibrated spring animation while sliding and after sliding */
+          <div className="flex-1 flex flex-col justify-between items-center w-full min-h-full">
+            <div className="flex-1" />
             <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="w-full flex flex-col items-center"
+              layout
+              transition={{
+                layout: {
+                  type: 'spring',
+                  damping: 32,
+                  stiffness: 260,
+                  mass: 0.85,
+                },
+              }}
+              className="w-full max-w-3xl flex flex-col items-center px-4"
             >
-              <SovaraHeroWatermark className="mb-8" />
+              <motion.div
+                layout
+                transition={{
+                  layout: {
+                    type: 'spring',
+                    damping: 32,
+                    stiffness: 260,
+                    mass: 0.85,
+                  },
+                }}
+              >
+                <SovaraHeroWatermark className="mb-8" />
+              </motion.div>
 
-              {/* Large Centered Hero Prompt Box */}
-              <div className="w-full max-w-2xl bg-[#121217] border border-[#24242e] rounded-2xl p-2.5 sm:p-3 shadow-2xl transition-all teal-border-glow">
+              {/* Large Centered Hero Prompt Box with synchronized gliding and post-sliding settle */}
+              <motion.div
+                layout
+                key={sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}
+                initial={{ opacity: 0.96, scale: 0.995 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{
+                  layout: {
+                    type: 'spring',
+                    damping: 32,
+                    stiffness: 260,
+                    mass: 0.85,
+                  },
+                  scale: {
+                    type: 'spring',
+                    damping: 24,
+                    stiffness: 300,
+                    delay: 0.05,
+                  },
+                  opacity: { duration: 0.25 },
+                }}
+                className="w-full max-w-2xl bg-[#121217] border border-[#24242e] rounded-2xl p-2.5 sm:p-3 shadow-2xl transition-all duration-300 teal-border-glow hover:border-[#333342] focus-within:border-[#7adfd4]/50 focus-within:shadow-[0_8px_32px_rgba(122,223,212,0.12)]"
+              >
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    className="p-2 text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#1a1a22] rounded-lg transition-colors"
+                    className="p-2 text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#1a1a22] rounded-lg transition-colors active:scale-95"
                     title="Attach file or context"
                   >
                     <Paperclip size={18} />
@@ -157,7 +199,7 @@ export const MainChat: React.FC<MainChatProps> = ({
                   <button
                     onClick={() => handleSendMessage()}
                     disabled={!inputPrompt.trim()}
-                    className={`p-2 rounded-xl transition-all ${
+                    className={`p-2 rounded-xl transition-all duration-150 active:scale-95 ${
                       inputPrompt.trim()
                         ? 'bg-[#7adfd4] hover:bg-[#6bd0c5] text-black shadow-md shadow-[#7adfd4]/20 scale-100'
                         : 'bg-[#1e1e26] text-[#71717a] cursor-not-allowed'
@@ -167,31 +209,26 @@ export const MainChat: React.FC<MainChatProps> = ({
                     <ArrowUp size={18} className="stroke-[2.5]" />
                   </button>
                 </div>
-              </div>
+              </motion.div>
+            </motion.div>
 
-              {/* Subtitle */}
-              <div className="text-[12px] text-[#5c5c66] mt-4 flex items-center justify-center gap-1.5 select-none">
+            {/* Bottom Footer with synchronized layout transition */}
+            <motion.div
+              layout
+              transition={{
+                layout: {
+                  type: 'spring',
+                  damping: 32,
+                  stiffness: 260,
+                  mass: 0.85,
+                },
+              }}
+              className="flex-1 flex items-end justify-center pb-6"
+            >
+              <div className="text-[12px] text-[#555562] flex items-center justify-center gap-1.5 select-none tracking-wide">
                 <span>Private workspace</span>
-                <span>•</span>
+                <span className="text-[#3a3a46]">•</span>
                 <span>Local execution</span>
-              </div>
-
-              {/* Quick Prompt Ideas */}
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-8 max-w-xl">
-                {[
-                  'Help me with homework',
-                  'Datascience assignment',
-                  'Compare vendor warranties',
-                  'Paneer sabzi recipe',
-                ].map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => handleSendMessage(item)}
-                    className="px-3.5 py-1.5 rounded-full bg-[#131318] border border-[#202028] text-xs text-[#a1a1aa] hover:text-white hover:border-[#383846] hover:bg-[#181820] transition-all"
-                  >
-                    {item}
-                  </button>
-                ))}
               </div>
             </motion.div>
           </div>
