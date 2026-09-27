@@ -1,4 +1,5 @@
 export type NavigationTab = 'chat' | 'vault' | 'artifacts';
+import type { ExecutionTelemetry } from '../api/types';
 
 export interface VaultDocument {
   id: string;
@@ -66,24 +67,7 @@ export interface ChatMessage {
   evidence?: Record<string, unknown>[];
   verificationStatus?: string;
 
-  executionTelemetry?: {
-    local_inference?: boolean;
-    processing_location?: string;
-    models_used?: string[];
-    llm_calls?: number;
-    llm_total_duration_ms?: number;
-    llm_average_duration_ms?: number;
-    external_api_calls?: number;
-    network_calls?: number;
-    cloud_uploads?: number;
-    files_processed?: number;
-    tools_used?: string[];
-    sandbox_executions?: number;
-    sandbox_successes?: number;
-    sandbox_failures?: number;
-    sandbox_timeouts?: number;
-    no_external_calls?: boolean;
-  };
+  executionTelemetry?: ExecutionTelemetry;
 
   generatedDeliverables?: string[];
 }
