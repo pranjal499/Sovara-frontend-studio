@@ -176,7 +176,7 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
               No artifacts found
             </h3>
             <p className="text-xs text-[#6e6e7d] mt-1.5 max-w-sm leading-relaxed">
-              {isSearching ? 'No documents match your query. Try a different search term.' : 'Files generated during your chat sessions will appear here.'}
+              {isSearching ? 'No documents match your query. Try a different search term.' : 'Generated artifacts will appear here when artifact library sync is enabled.'}
             </p>
           </motion.div>
         ) : (
