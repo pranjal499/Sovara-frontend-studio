@@ -263,6 +263,8 @@ export const MainChat: React.FC<MainChatProps> = ({
       ...previous,
       [aiMsgId]: '',
     }));
+    
+    let streamFinished = false;
 
     try {
       await sovaraApi.streamAnalyze(
@@ -274,7 +276,6 @@ export const MainChat: React.FC<MainChatProps> = ({
         },
         {
           onWorkflow: (event) => {
-            console.log('SOVARA workflow:', event);
 
             const workflowEvent =
               event as unknown as Record<string, unknown>;
@@ -295,6 +296,8 @@ export const MainChat: React.FC<MainChatProps> = ({
              * Cast once at the API boundary instead of repeatedly
              * accessing unknown properties.
              */
+
+            streamFinished = true;
             const completedEvent =
               event as unknown as AnalysisResponse;
 
@@ -422,7 +425,6 @@ export const MainChat: React.FC<MainChatProps> = ({
 
             submissionLockRef.current = false;
             setIsThinking(false);
-            console.log('SOVARA completed task_id:', completedEvent.task_id);
             setMessages(updatedMessages);
 
             onSaveMessages?.(
@@ -442,6 +444,7 @@ export const MainChat: React.FC<MainChatProps> = ({
           },
 
           onError: (event) => {
+            streamFinished = true;
             console.error(
               'SOVARA stream error:',
               event,
@@ -462,6 +465,9 @@ export const MainChat: React.FC<MainChatProps> = ({
           },
         },
       );
+      if (!streamFinished) {
+        throw new Error('SOVARA stream ended without a completion or error event.');
+      }
     } catch (error) {
       console.error(
         'SOVARA analysis failed:',
