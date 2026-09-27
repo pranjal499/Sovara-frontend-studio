@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { NavigationTab, ChatSession } from '../types';
 import { SovaraSidebarLogo } from './SovaraLogo';
-import { RECENT_CHATS } from '../data/mockData';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -56,17 +55,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onPinChat,
   onArchiveChat,
   onDeleteChat,
-  recentChats = RECENT_CHATS,
   isMobile = false,
 }) => {
   // Normalize chat sessions from props or fallback to recentChats strings
-  const sessions: ChatSession[] = chatSessions || recentChats.map((c, i) => ({
-    id: `chat-${i}`,
-    title: c,
-    isPinned: i === 0,
-    isArchived: false,
-    createdAt: Date.now() - i * 100000,
-  }));
+  const sessions: ChatSession[] = chatSessions ?? [];
 
   const [activeMenuChatId, setActiveMenuChatId] = useState<string | null>(null);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
@@ -548,3 +540,5 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </AnimatePresence>
   );
 };
+
+

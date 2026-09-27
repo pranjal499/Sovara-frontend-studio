@@ -6,7 +6,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NavigationTab, VaultDocument, ArtifactItem, ChatSession, ChatMessage } from './types';
-import { INITIAL_VAULT_DOCUMENTS, INITIAL_ARTIFACTS, RECENT_CHATS, INITIAL_CHAT_SESSIONS, INITIAL_CHAT_MESSAGES_MAP } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
 import { WindowBar } from './components/WindowBar';
 import { MainChat } from './components/MainChat';
@@ -17,22 +16,62 @@ import { SettingsModal } from './components/SettingsModal';
 import { Toast } from './components/Toast';
 import { Menu, Edit, Sparkles, Plus, BookOpen } from 'lucide-react';
 import { SovaraSidebarLogo } from './components/SovaraLogo';
+import { sovaraApi } from './api/client';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rightBarOpen, setRightBarOpen] = useState(false);
-  const [rightBarTab, setRightBarTab] = useState<'activity' | 'sources'>('activity');
+  const [rightBarTab, setRightBarTab] = useState<
+    'activity' | 'sources' | 'approvals'
+  >('activity');
   
   // Independent chat session state - default to fresh new chat on startup
-  const [activeChatId, setActiveChatId] = useState<string>(() => `chat-session-${Date.now()}`);
+  const [activeChatId, setActiveChatId] = useState<string>(() => localStorage.getItem('sovara_active_chat_id') ?? ('chat-session-' + Date.now()));
   const [activeChatTitle, setActiveChatTitle] = useState('New Chat');
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>(INITIAL_CHAT_SESSIONS);
-  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(INITIAL_CHAT_MESSAGES_MAP);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => { try { const stored = localStorage.getItem('sovara_chat_sessions'); return stored ? JSON.parse(stored) : []; } catch { return []; } });
+  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(() => { try { const stored = localStorage.getItem('sovara_chat_messages'); return stored ? JSON.parse(stored) : {}; } catch { return {}; } });
   
+  useEffect(() => {
+    const restoredSession = chatSessions.find((session) => session.id === activeChatId);
+    if (restoredSession) setActiveChatTitle(restoredSession.title);
+
+    localStorage.setItem('sovara_chat_sessions', JSON.stringify(chatSessions));
+  }, [chatSessions]);
+
+  useEffect(() => {
+    localStorage.setItem('sovara_chat_messages', JSON.stringify(chatMessages));
+  }, [chatMessages]);
+
+  useEffect(() => {
+    localStorage.setItem('sovara_active_chat_id', activeChatId);
+  }, [activeChatId]);
   // Data collections with CRUD capabilities
-  const [vaultDocs, setVaultDocs] = useState<VaultDocument[]>(INITIAL_VAULT_DOCUMENTS);
-  const [artifacts, setArtifacts] = useState<ArtifactItem[]>(INITIAL_ARTIFACTS);
+  const [vaultDocs, setVaultDocs] = useState<VaultDocument[]>([]);
+      const loadVaultDocuments = async () => {
+    try {
+      const response = await sovaraApi.listVaultDocuments();
+
+      const documents: VaultDocument[] = response.map((doc: any) => ({
+        id: doc.document_id,
+        name: doc.filename,
+        pages: 0,
+        uploadedDate: doc.created_at,
+        typeBadge: doc.file_type?.toUpperCase() ?? 'FILE',
+        fileName: doc.filename,
+        description: '',
+      }));
+
+      setVaultDocs(documents);
+    } catch (error) {
+      console.error('Failed to load Vault documents:', error);
+    }
+  };
+
+  useEffect(() => {
+    void loadVaultDocuments();
+  }, []);
+  const [artifacts, setArtifacts] = useState<ArtifactItem[]>([]);
   
   // Modals & Feedback
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -61,20 +100,6 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 2500);
   };
 
-  const handleDownloadFile = (fileName: string) => {
-    showToast(`Downloading ${fileName}...`, 'download');
-    // Simulated real file download
-    const element = document.createElement('a');
-    const file = new Blob([`Sovara AI Exported Document: ${fileName}\nGenerated on ${new Date().toISOString()}`], {
-      type: 'text/plain',
-    });
-    element.href = URL.createObjectURL(file);
-    element.download = fileName.endsWith('.pdf') ? fileName.replace('.pdf', '.txt') : `${fileName}.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
   const handleAddVaultDocument = (newDoc: Omit<VaultDocument, 'id'>) => {
     const created: VaultDocument = {
       ...newDoc,
@@ -96,12 +121,29 @@ export default function App() {
     showToast('Document permanently deleted from Knowledge Vault');
   };
 
+  const handleDownloadFile = (fileName: string) => {
+    showToast(`Downloading ${fileName}...`, 'download');
+    const element = document.createElement('a');
+    const file = new Blob(
+      [`Sovara AI Exported Document: ${fileName}\nGenerated on ${new Date().toISOString()}`],
+      { type: 'text/plain' }
+    );
+    element.href = URL.createObjectURL(file);
+    element.download = fileName.endsWith('.pdf')
+      ? fileName.replace('.pdf', '.txt')
+      : `${fileName}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
   const handleDeleteArtifact = (id: string) => {
     setArtifacts((prev) => prev.filter((a) => a.id !== id));
     showToast('Artifact deleted');
   };
 
-  const handleOpenRightBar = (tab: 'activity' | 'sources') => {
+  const handleOpenRightBar = (
+    tab: 'activity' | 'sources' | 'approvals',
+  ) => {
     setRightBarTab(tab);
     setRightBarOpen(true);
   };
@@ -229,6 +271,38 @@ export default function App() {
     return 'Artifacts';
   };
 
+  const handleConversationIdUpdate = (
+    chatId: string,
+    conversationId: string,
+  ) => {
+    setChatSessions((prev) => {
+      const existingSession = prev.find((session) => session.id === chatId);
+
+      if (existingSession) {
+        return prev.map((session) =>
+          session.id === chatId
+            ? { ...session, conversationId }
+            : session,
+        );
+      }
+
+      return [
+        ...prev,
+        {
+          id: chatId,
+          title: activeChatTitle || 'New Chat',
+          conversationId,
+          createdAt: Date.now(),
+        },
+      ];
+    });
+  };
+
+  const activeChatMessages = chatMessages[activeChatId] ?? [];
+  const latestSovaraMessage = [...activeChatMessages]
+    .reverse()
+    .find((message) => message.sender === 'sovara');
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0d] text-[#e4e4e7] antialiased">
       {/* Collapsible Sidebar (Drawer on mobile, spring collapsing column on desktop) */}
@@ -351,12 +425,16 @@ export default function App() {
                     key={activeChatId}
                     chatId={activeChatId}
                     chatTitle={activeChatTitle}
+                    conversationId={
+                      chatSessions.find((session) => session.id === activeChatId)?.conversationId
+                    }
                     initialMessages={chatMessages[activeChatId] || []}
                     onOpenRightBar={handleOpenRightBar}
                     onDownloadFile={handleDownloadFile}
                     sidebarOpen={sidebarOpen}
                     onChatTitleUpdate={handleChatTitleUpdate}
                     onSaveMessages={handleSaveMessages}
+                    onConversationIdUpdate={handleConversationIdUpdate}
                   />
                 </motion.div>
               )}
@@ -373,6 +451,7 @@ export default function App() {
                   <KnowledgeVault
                     documents={vaultDocs}
                     onAddDocument={handleAddVaultDocument}
+                    onRefreshDocuments={loadVaultDocuments}
                     onUpdateDocument={handleUpdateVaultDocument}
                     onDeleteDocument={handleDeleteVaultDocument}
                     onDownloadFile={handleDownloadFile}
@@ -395,7 +474,7 @@ export default function App() {
                       setActiveChatTitle(chatRef);
                       setActiveTab('chat');
                     }}
-                    onDownloadFile={handleDownloadFile}
+
                     onDeleteArtifact={handleDeleteArtifact}
                   />
                 </motion.div>
@@ -408,6 +487,7 @@ export default function App() {
               onClose={() => setRightBarOpen(false)}
               defaultTab={rightBarTab}
               isMobile={isMobile}
+              latestMessage={latestSovaraMessage}
             />
           </main>
         </div>
@@ -428,3 +508,12 @@ export default function App() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+

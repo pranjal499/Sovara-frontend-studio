@@ -2,16 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, 
-  Download, 
   MoreHorizontal, 
   ExternalLink, 
   FileText, 
   Image as ImageIcon,
-  Eye,
-  Copy,
   Trash2,
   FileCode,
-  Check,
   X,
   FileSpreadsheet,
   File,
@@ -23,7 +19,6 @@ import { ArtifactItem } from '../types';
 interface ArtifactsViewProps {
   artifacts: ArtifactItem[];
   onSelectChatReference: (chatRef: string) => void;
-  onDownloadFile: (fileName: string) => void;
   onDeleteArtifact?: (id: string) => void;
 }
 
@@ -32,13 +27,11 @@ type FilterType = 'All' | 'PDF' | 'Docx' | 'PPT' | 'Code' | '.Md' | 'Txt';
 export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
   artifacts,
   onSelectChatReference,
-  onDownloadFile,
   onDeleteArtifact,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('All');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const filterTabs: FilterType[] = ['All', 'PDF', 'Docx', 'PPT', 'Code', '.Md', 'Txt'];
 
@@ -52,15 +45,6 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
       return matchesFilter && matchesSearch;
     });
   }, [artifacts, selectedFilter, searchQuery]);
-
-  const handleCopyLink = (id: string, name: string) => {
-    navigator.clipboard.writeText(`https://sovara.ai/artifacts/${id}/${encodeURIComponent(name)}`);
-    setCopiedId(id);
-    setTimeout(() => {
-      setCopiedId(null);
-      setActiveMenuId(null);
-    }, 1500);
-  };
 
   const getFileIcon = (fileType: string) => {
     const type = fileType.toLowerCase();
@@ -245,14 +229,6 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
                       {/* Mobile Actions */}
                       <div className="flex items-center gap-1 shrink-0">
                         <button
-                          onClick={() => onDownloadFile(`${art.name}.${art.fileType.toLowerCase()}`)}
-                          className="p-1.5 rounded-lg text-[#71717e] hover:text-white hover:bg-[#181822] transition-colors"
-                          title="Download file"
-                          aria-label="Download file"
-                        >
-                          <Download size={14} />
-                        </button>
-                        <button
                           onClick={() => setActiveMenuId(activeMenuId === art.id ? null : art.id)}
                           className="p-1.5 rounded-lg text-[#71717e] hover:text-white hover:bg-[#181822] transition-colors"
                           title="More options"
@@ -322,15 +298,6 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
                     {/* Action Controls */}
                     <div className="col-span-2 md:col-span-1 flex items-center justify-end gap-1 relative">
                       <button
-                        onClick={() => onDownloadFile(`${art.name}.${art.fileType.toLowerCase()}`)}
-                        className="p-2 rounded-lg text-[#686878] hover:text-white hover:bg-[#181822] transition-all"
-                        title="Download file"
-                        aria-label="Download file"
-                      >
-                        <Download size={14} />
-                      </button>
-
-                      <button
                         onClick={() => setActiveMenuId(activeMenuId === art.id ? null : art.id)}
                         className="p-2 rounded-lg text-[#686878] hover:text-white hover:bg-[#181822] transition-all"
                         title="More options"
@@ -356,39 +323,6 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
                           transition={{ duration: 0.12 }}
                           className="absolute right-3 sm:right-4 top-12 z-40 w-44 bg-[#13131a] border border-[#20202b] rounded-xl shadow-2xl py-1 text-xs select-none"
                         >
-                          <button
-                            onClick={() => {
-                              onDownloadFile(art.name);
-                              setActiveMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-[#c6c6d2] hover:text-white hover:bg-[#1a1a24] transition-colors text-left"
-                          >
-                            <Eye size={13} className="text-[#888898]" />
-                            <span>Preview</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              onDownloadFile(`${art.name}.${art.fileType.toLowerCase()}`);
-                              setActiveMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-[#c6c6d2] hover:text-white hover:bg-[#1a1a24] transition-colors text-left"
-                          >
-                            <Download size={13} className="text-[#888898]" />
-                            <span>Download</span>
-                          </button>
-
-                          <button
-                            onClick={() => handleCopyLink(art.id, art.name)}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-[#c6c6d2] hover:text-white hover:bg-[#1a1a24] transition-colors text-left"
-                          >
-                            {copiedId === art.id ? (
-                              <Check size={13} className="text-[#7adfd4]" />
-                            ) : (
-                              <Copy size={13} className="text-[#888898]" />
-                            )}
-                            <span>{copiedId === art.id ? 'Copied Link' : 'Copy link'}</span>
-                          </button>
 
                           {onDeleteArtifact && (
                             <button

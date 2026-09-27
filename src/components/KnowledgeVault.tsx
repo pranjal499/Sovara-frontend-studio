@@ -1,15 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Plus, 
-  Search, 
-  FileText, 
-  Download, 
-  Edit3, 
-  Trash2, 
-  UploadCloud, 
-  Check, 
-  X, 
+  Plus, Search, FileText, Download, Edit3, Trash2, UploadCloud, Check, X, Loader2,
   ChevronDown, 
   ArrowLeft,
   Calendar,
@@ -19,6 +11,7 @@ import {
 } from 'lucide-react';
 import { VaultDocument } from '../types';
 import { DeleteModal } from './DeleteModal';
+import { sovaraApi } from '../api/client';
 
 interface KnowledgeVaultProps {
   documents: VaultDocument[];
@@ -26,6 +19,7 @@ interface KnowledgeVaultProps {
   onUpdateDocument: (doc: VaultDocument) => void;
   onDeleteDocument: (id: string) => void;
   onDownloadFile: (fileName: string) => void;
+  onRefreshDocuments: () => Promise<void>;
 }
 
 type VaultViewMode = 'default' | 'view' | 'add' | 'edit';
@@ -36,6 +30,7 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
   onUpdateDocument,
   onDeleteDocument,
   onDownloadFile,
+  onRefreshDocuments,
 }) => {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(
     documents.length > 0 ? documents[0].id : null
@@ -54,6 +49,8 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
   const [formDesc, setFormDesc] = useState('');
   const [formFileName, setFormFileName] = useState('Vendor_warrantyReport.pdf');
   const [formFileUploaded, setFormFileUploaded] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const selectedDoc = documents.find((d) => d.id === selectedDocId) || documents[0];
 
@@ -67,6 +64,14 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
       );
     });
   }, [documents, searchQuery]);
+
+  const handleFileSelect = (file: File | null) => {
+    if (!file) return;
+
+    setSelectedFile(file);
+    setFormFileName(file.name);
+    setFormFileUploaded(true);
+  };
 
   const handleStartAdd = () => {
     setFormName('');
@@ -95,22 +100,24 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
     setMobilePane('detail');
   };
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) return;
 
     if (viewMode === 'add') {
-      const newDoc: Omit<VaultDocument, 'id'> = {
-        name: formName.trim(),
-        pages: 64,
-        uploadedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-        typeBadge: formType.toUpperCase(),
-        fileName: formFileName || 'Document_Attachment.pdf',
-        comparisonType: '64 pages • Custom knowledge source',
-        description: formDesc.trim() || 'Knowledge context documentation.',
-      };
-      onAddDocument(newDoc);
-      setViewMode('view');
+      if (!selectedFile) return;
+
+      setIsUploading(true);
+
+      try {
+        await sovaraApi.uploadVaultDocument(selectedFile);
+        await onRefreshDocuments();
+        setViewMode('view');
+      } finally {
+        setIsUploading(false);
+      }
+
+      return;
     } else if (viewMode === 'edit' && selectedDoc) {
       onUpdateDocument({
         ...selectedDoc,
@@ -458,14 +465,19 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div 
-                  onClick={() => setFormFileUploaded(true)}
+                <label
                   className={`flex items-center gap-3 p-3.5 rounded-xl cursor-pointer transition-all ${
-                    formFileUploaded 
-                      ? 'bg-[#101918] text-[#7adfd4]' 
+                    formFileUploaded
+                      ? 'bg-[#101918] text-[#7adfd4]'
                       : 'bg-[#111115] hover:bg-[#14141a] text-[#888896]'
                   }`}
                 >
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    className="hidden"
+                    onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
+                  />
                   <UploadCloud size={16} className="text-[#7adfd4] shrink-0" />
                   <div className="min-w-0">
                     <div className="text-xs font-medium text-white truncate">
@@ -473,7 +485,7 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
                     </div>
                     <div className="text-[10px] text-[#555562]">PDF, DOCX, TXT</div>
                   </div>
-                </div>
+                </label>
 
                 <div className="relative">
                   <select
@@ -508,10 +520,20 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
               <div className="flex items-center gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#7adfd4] hover:bg-[#6bd0c5] text-black text-xs font-semibold transition-all active:scale-95 shadow-sm shadow-[#7adfd4]/10"
+                  disabled={isUploading || !selectedFile}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#7adfd4] hover:bg-[#6bd0c5] text-black text-xs font-semibold transition-all active:scale-95 shadow-sm shadow-[#7adfd4]/10 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Check size={13} className="stroke-[2.5]" />
-                  <span>Save</span>
+                  {isUploading ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={13} className="stroke-[2.5]" />
+                      <span>Save</span>
+                    </>
+                  )}
                 </button>
 
                 <button
