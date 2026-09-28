@@ -41,6 +41,7 @@ export const SovaraSidebarLogo: React.FC<SovaraLogoProps> = ({
   return (
     <div className={`flex items-center gap-2.5 select-none ${className}`}>
       {/* <SovaraSparkleMark size={iconSize} className="text-[#84e4d9]" /> */}
+      <img src="/asset/fav_icon.svg" alt="Sovara" />
       <img src="/asset/Logo_sidebar.svg" alt="Sovara" />
     </div>
   );
