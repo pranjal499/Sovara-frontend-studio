@@ -574,7 +574,7 @@ export const MainChat: React.FC<MainChatProps> = ({
                   duration: 0.25,
                 }}
               >
-                <SovaraHeroWatermark className="mb-8" />
+                <SovaraHeroWatermark className="" />
               </motion.div>
 
               {/* Hero Prompt */}
