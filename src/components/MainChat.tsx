@@ -136,6 +136,7 @@ export const MainChat: React.FC<MainChatProps> = ({
   const [isThinking, setIsThinking] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+  const [workflowExpanded, setWorkflowExpanded] = useState(true);
 
   const [workflowStages, setWorkflowStages] = useState<
     Record<string, unknown>[]
@@ -251,6 +252,7 @@ export const MainChat: React.FC<MainChatProps> = ({
     setSelectedFiles([]);
 
     setIsThinking(true);
+    setWorkflowExpanded(true);
 
     workflowStagesRef.current = [];
     setWorkflowStages([]);
@@ -1192,21 +1194,116 @@ export const MainChat: React.FC<MainChatProps> = ({
                   opacity: 1,
                   y: 0,
                 }}
-                className="flex items-center gap-3 text-xs text-[#7adfd4] pt-2"
+                className="pt-2"
               >
-                <SovaraRibbonLoader
-                  size={26}
-                />
+                <div className="flex items-center gap-3 text-xs text-[#7adfd4]">
+                  <SovaraRibbonLoader size={26} />
 
-                <span className="animate-pulse tracking-wide font-medium">
-                  {workflowStages.length >
-                  0
-                    ? 'SOVARA is processing your request...'
-                    : 'SOVARA is analyzing and verifying context...'}
-                </span>
+                  <span className="animate-pulse tracking-wide font-medium">
+                    {workflowStages.length > 0
+                      ? 'SOVARA is processing your request...'
+                      : 'SOVARA is analyzing and verifying context...'}
+                  </span>
+                </div>
+
+                {workflowStages.length > 0 && (
+                  <div className="mt-3 ml-9 rounded-xl border border-[#1d1d28] bg-[#121218] overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setWorkflowExpanded((expanded) => !expanded)
+                      }
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-[#16161e] transition-colors"
+                      aria-expanded={workflowExpanded}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#a5a5b2]">
+                          Execution
+                        </span>
+
+                        <span className="text-[10px] text-[#636372]">
+                          {workflowStages.length}{' '}
+                          {workflowStages.length === 1 ? 'event' : 'events'}
+                        </span>
+                      </div>
+
+                      <ChevronDown
+                        size={14}
+                        className={`text-[#71717a] shrink-0 transition-transform ${
+                          workflowExpanded ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {workflowExpanded && (
+                      <div className="border-t border-[#1d1d28] px-3 py-2">
+                        <div className="space-y-1">
+                          {workflowStages.map((event, index) => {
+                            const message =
+                              typeof event.message === 'string' &&
+                              event.message.trim()
+                                ? event.message.trim()
+                                : 'Workflow update';
+
+                            const status =
+                              typeof event.status === 'string'
+                                ? event.status
+                                : '';
+
+                            const isLast =
+                              index === workflowStages.length - 1;
+
+                            const isError =
+                              status === 'error' ||
+                              status === 'failed' ||
+                              status === 'cancelled';
+
+                            return (
+                              <div
+                                key={
+                                  typeof event.event_id === 'string'
+                                    ? event.event_id
+                                    : `${index}-${message}`
+                                }
+                                className="flex items-center gap-2.5 py-1.5"
+                              >
+                                <div className="shrink-0">
+                                  {isError ? (
+                                    <X
+                                      size={12}
+                                      className="text-[#f87171]"
+                                    />
+                                  ) : isLast ? (
+                                    <SovaraRibbonLoader size={14} />
+                                  ) : (
+                                    <Check
+                                      size={12}
+                                      className="text-[#34d399] stroke-[2.5]"
+                                    />
+                                  )}
+                                </div>
+
+                                <span
+                                  className={`text-[11px] leading-tight ${
+                                    isError
+                                      ? 'text-[#fca5a5]'
+                                      : isLast
+                                        ? 'text-[#d4d4d8]'
+                                        : 'text-[#a1a1aa]'
+                                  }`}
+                                >
+                                  {message}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </motion.div>
             )}
-
             <div ref={messagesEndRef} />
           </div>
         )}
