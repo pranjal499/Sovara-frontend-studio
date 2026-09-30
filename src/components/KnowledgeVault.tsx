@@ -113,6 +113,8 @@ export const KnowledgeVault: React.FC<KnowledgeVaultProps> = ({
         await sovaraApi.uploadVaultDocument(selectedFile);
         await onRefreshDocuments();
         setViewMode('view');
+      } catch (err) {
+        console.error('Failed to upload document to Knowledge Vault:', err);
       } finally {
         setIsUploading(false);
       }

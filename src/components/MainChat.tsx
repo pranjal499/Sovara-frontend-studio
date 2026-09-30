@@ -29,6 +29,7 @@ interface MainChatProps {
   initialMessages?: ChatMessage[];
   onOpenRightBar: (tab: 'activity' | 'sources' | 'approvals') => void;
   onDownloadFile: (fileName: string) => void;
+  onOpenDocumentViewer?: (docName: string) => void;
   sidebarOpen?: boolean;
   onChatTitleUpdate?: (chatId: string, newTitle: string) => void;
   onSaveMessages?: (chatId: string, messages: ChatMessage[]) => void;
@@ -123,6 +124,7 @@ export const MainChat: React.FC<MainChatProps> = ({
   initialMessages = [],
   onOpenRightBar,
   onDownloadFile,
+  onOpenDocumentViewer,
   sidebarOpen = true,
   onChatTitleUpdate,
   onSaveMessages,
@@ -613,7 +615,7 @@ export const MainChat: React.FC<MainChatProps> = ({
                         handleSendMessage();
                       }
                     }}
-                    placeholder="Ask SOVARA to analyze, compare, research, or create..."
+                    placeholder="Ask SOVARA to research, analyze, or compare..."
                     className="flex-1 bg-transparent text-sm md:text-[15px] text-[#f4f4f5] placeholder-[#6b6b76] focus:outline-none"
                     autoFocus
                   />
@@ -747,8 +749,30 @@ export const MainChat: React.FC<MainChatProps> = ({
                     className="space-y-4"
                   >
                     {msg.sender === 'user' ? (
-                      /* User Message */
-                      <div className="flex justify-end">
+                      /* User Message matching Screenshot 1 & 2 */
+                      <div className="flex flex-col items-end">
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-2 justify-end mb-2">
+                            {msg.attachments.map((attachment, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => onOpenDocumentViewer?.(attachment.name.replace(/\.[^/.]+$/, ''))}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#141419] border border-[#242430] hover:border-[#38384a] text-xs text-[#e4e4e7] transition-all shadow-sm group"
+                                title="Click to preview document"
+                              >
+                                <div className="p-1 rounded bg-[#1e1e28] text-[#7adfd4] group-hover:scale-105 transition-transform">
+                                  <FileText size={13} />
+                                </div>
+                                <div className="flex flex-col text-left">
+                                  <span className="font-medium text-xs text-white leading-tight">{attachment.name}</span>
+                                  <span className="text-[9px] text-[#71717a] font-mono uppercase font-semibold">PDF</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
                         <motion.div
                           initial={{
                             scale: 0.98,
@@ -761,35 +785,6 @@ export const MainChat: React.FC<MainChatProps> = ({
                           <div>
                             {msg.text}
                           </div>
-
-                          {msg.attachments &&
-                            msg.attachments.length >
-                              0 && (
-                              <div className="mt-3 space-y-1.5">
-                                {msg.attachments.map(
-                                  (
-                                    attachment,
-                                    index,
-                                  ) => (
-                                    <div
-                                      key={index}
-                                      className="flex items-center gap-2 text-[11px] text-[#8f8f99]"
-                                    >
-                                      <FileText
-                                        size={12}
-                                        className="text-[#7adfd4]"
-                                      />
-
-                                      <span className="truncate">
-                                        {
-                                          attachment.name
-                                        }
-                                      </span>
-                                    </div>
-                                  ),
-                                )}
-                              </div>
-                            )}
                         </motion.div>
                       </div>
                     ) : (
@@ -901,9 +896,29 @@ export const MainChat: React.FC<MainChatProps> = ({
                                                 </span>
 
                                                 <span>
-                                                  {
+                                                  {cleanLine.includes('#F36223') ? (
+                                                    <span className="inline-flex flex-wrap items-center gap-1.5">
+                                                      <span>Accent Color</span>
+                                                      <span className="px-1.5 py-0.5 rounded bg-[#F36223] text-black font-semibold text-xs font-mono shadow-xs">
+                                                        #F36223
+                                                      </span>
+                                                      <span>and dark text with an inverted white button (black when hovered over)</span>
+                                                    </span>
+                                                  ) : cleanLine.includes('www.google.com') ? (
+                                                    <>
+                                                      A page with projects has been added to the link{' '}
+                                                      <a
+                                                        href="https://www.google.com"
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-[#7adfd4] underline underline-offset-4 hover:text-[#99eee3]"
+                                                      >
+                                                        www.google.com
+                                                      </a>
+                                                    </>
+                                                  ) : (
                                                     cleanLine
-                                                  }
+                                                  )}
                                                 </span>
                                               </motion.li>
                                             );
@@ -962,6 +977,21 @@ export const MainChat: React.FC<MainChatProps> = ({
                             }}
                             className="space-y-4"
                           >
+                            {/* Direct Demo Script Link matching Screenshot 1 & 2 */}
+                            <div className="pt-0.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onOpenDocumentViewer?.('SOVARA_Demo_Script');
+                                  onDownloadFile('SOVARA_Demo_Script.pdf');
+                                }}
+                                className="inline-flex items-center gap-1.5 text-xs text-[#d4d4dc] hover:text-[#7adfd4] transition-colors underline underline-offset-4 font-medium py-1 group"
+                              >
+                                <span>Download the SOVARA Demo Video Script PDF</span>
+                                <Download size={13} className="text-[#7adfd4] group-hover:translate-y-0.5 transition-transform" />
+                              </button>
+                            </div>
+
                             {/* Generated Deliverables */}
                             {msg.attachments &&
                               msg.attachments
@@ -986,8 +1016,11 @@ export const MainChat: React.FC<MainChatProps> = ({
                                         }}
                                         className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-3.5 rounded-xl bg-[#121217] border border-[#22222b] transition-colors gap-2.5 sm:gap-0 shadow-xs"
                                       >
-                                        <div className="flex items-center gap-3 min-w-0">
-                                          <div className="p-2 rounded-lg bg-[#181820] text-[#7adfd4] shrink-0">
+                                        <div 
+                                          onClick={() => onOpenDocumentViewer?.(attachment.name.replace(/\.[^/.]+$/, ''))}
+                                          className="flex items-center gap-3 min-w-0 cursor-pointer group"
+                                        >
+                                          <div className="p-2 rounded-lg bg-[#201416] text-[#f87171] shrink-0 border border-[#f87171]/20 group-hover:scale-105 transition-transform">
                                             <FileText
                                               size={
                                                 18
@@ -996,7 +1029,7 @@ export const MainChat: React.FC<MainChatProps> = ({
                                           </div>
 
                                           <div className="min-w-0">
-                                            <div className="text-xs sm:text-sm font-medium text-white truncate">
+                                            <div className="text-xs sm:text-sm font-medium text-white truncate group-hover:text-[#7adfd4] transition-colors">
                                               {
                                                 attachment.name
                                               }
@@ -1014,30 +1047,54 @@ export const MainChat: React.FC<MainChatProps> = ({
                                           </div>
                                         </div>
 
-                                        <motion.button
-                                          whileHover={{
-                                            scale: 1.02,
-                                          }}
-                                          whileTap={{
-                                            scale: 0.97,
-                                          }}
-                                          onClick={() =>
-                                            handleDownloadAttachment(
-                                              attachment,
-                                            )
-                                          }
-                                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1a22] hover:bg-[#242430] text-xs font-medium text-[#e4e4e7] border border-[#2c2c38] transition-all shrink-0 self-end sm:self-auto"
-                                        >
-                                          <Download
-                                            size={
-                                              13
+                                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                          <motion.button
+                                            whileHover={{
+                                              scale: 1.05,
+                                            }}
+                                            whileTap={{
+                                              scale: 0.95,
+                                            }}
+                                            onClick={() =>
+                                              onOpenDocumentViewer?.(
+                                                attachment.name.replace(/\.[^/.]+$/, ''),
+                                              )
                                             }
-                                          />
+                                            className="p-1.5 rounded-lg bg-[#1a1a22] hover:bg-[#242430] text-[#a0a0b0] hover:text-[#7adfd4] border border-[#2c2c38] transition-all"
+                                            title="Open in split document viewer"
+                                          >
+                                            {/* Split View Icon */}
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                              <line x1="12" y1="3" x2="12" y2="21"/>
+                                            </svg>
+                                          </motion.button>
 
-                                          <span>
-                                            Download
-                                          </span>
-                                        </motion.button>
+                                          <motion.button
+                                            whileHover={{
+                                              scale: 1.02,
+                                            }}
+                                            whileTap={{
+                                              scale: 0.97,
+                                            }}
+                                            onClick={() =>
+                                              handleDownloadAttachment(
+                                                attachment,
+                                              )
+                                            }
+                                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1a22] hover:bg-[#242430] text-xs font-medium text-[#e4e4e7] border border-[#2c2c38] transition-all"
+                                          >
+                                            <Download
+                                              size={
+                                                13
+                                              }
+                                            />
+
+                                            <span>
+                                              Download
+                                            </span>
+                                          </motion.button>
+                                        </div>
                                       </motion.div>
                                     ),
                                   )}
@@ -1071,34 +1128,35 @@ export const MainChat: React.FC<MainChatProps> = ({
                               </motion.div>
                             )}
 
-                            {/* Sources */}
+                            {/* Sources Header & quick action icons matching Screenshot 1 & 2 */}
                             {msg.hasSources && (
-                              <div>
-                                <motion.button
-                                  whileHover={{
-                                    scale: 1.025,
-                                    borderColor:
-                                      '#7adfd4',
-                                  }}
-                                  whileTap={{
-                                    scale: 0.98,
-                                  }}
-                                  onClick={() =>
-                                    onOpenRightBar(
-                                      'sources',
-                                    )
-                                  }
-                                  className="px-3.5 py-1.5 rounded-lg bg-[#15151c] hover:bg-[#1d1d26] border border-[#272733] text-xs font-medium text-[#d4d4d8] transition-all flex items-center gap-1.5"
-                                >
-                                  <BookOpen
-                                    size={12}
-                                    className="text-[#7adfd4]"
-                                  />
-
-                                  <span>
-                                    Sources
-                                  </span>
-                                </motion.button>
+                              <div className="pt-1">
+                                <div className="text-xs font-semibold text-white tracking-wide mb-1.5">
+                                  Sources
+                                </div>
+                                <div className="flex items-center gap-2 text-[#71717a]">
+                                  <button 
+                                    onClick={() => onOpenRightBar('sources')}
+                                    className="p-1.5 rounded-lg hover:text-white hover:bg-[#181822] transition-colors"
+                                    title="View grounded sources"
+                                  >
+                                    <BookOpen size={14} className="text-[#7adfd4]" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleCopy('sources', 'Grounded sources for SOVARA session')}
+                                    className="p-1.5 rounded-lg hover:text-white hover:bg-[#181822] transition-colors"
+                                    title="Copy source citations"
+                                  >
+                                    <Copy size={14} />
+                                  </button>
+                                  <button 
+                                    onClick={() => onOpenRightBar('sources')}
+                                    className="p-1.5 rounded-lg hover:text-white hover:bg-[#181822] transition-colors"
+                                    title="Expand sources drawer"
+                                  >
+                                    <ChevronDown size={14} />
+                                  </button>
+                                </div>
                               </div>
                             )}
 
@@ -1262,7 +1320,7 @@ export const MainChat: React.FC<MainChatProps> = ({
                       handleSendMessage();
                     }
                   }}
-                  placeholder="Ask anything, / for commands, @ for context..."
+                  placeholder="Ask SOVARA to research, analyze, or compare..."
                   className="flex-1 bg-transparent text-xs sm:text-sm text-[#f4f4f5] placeholder-[#6b6b76] focus:outline-none min-w-0"
                 />
 
@@ -1327,14 +1385,10 @@ export const MainChat: React.FC<MainChatProps> = ({
             </motion.div>
 
             {/* Footer */}
-            <div className="text-[10px] sm:text-[11px] text-[#555560] mt-1.5 sm:mt-2 text-center flex items-center justify-center gap-1 select-none">
-              <span>
-                Private workspace • Local execution
-              </span>
-
-              <span className="text-[#7adfd4]/80">
-                ›
-              </span>
+            <div className="text-[11px] text-[#555562] mt-1.5 sm:mt-2 text-center flex items-center justify-center gap-1.5 select-none tracking-wide">
+              <span>Private workspace</span>
+              <span className="text-[#3a3a46]">•</span>
+              <span>Local execution</span>
             </div>
           </div>
         </motion.div>

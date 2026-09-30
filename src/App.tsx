@@ -14,9 +14,11 @@ import { ArtifactsView } from './components/ArtifactsView';
 import { RightBar } from './components/RightBar';
 import { SettingsModal } from './components/SettingsModal';
 import { Toast } from './components/Toast';
+import { DocumentViewer } from './components/DocumentViewer';
 import { Menu, Edit, Sparkles, Plus, BookOpen } from 'lucide-react';
 import { SovaraSidebarLogo } from './components/SovaraLogo';
 import { sovaraApi } from './api/client';
+import { DEFAULT_CHAT_SESSIONS, INITIAL_PRESET_MESSAGES, INITIAL_VAULT_DOCS } from './data/defaultData';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('chat');
@@ -26,18 +28,57 @@ export default function App() {
     'activity' | 'sources' | 'approvals'
   >('activity');
   
+  // Document Viewer split preview state matching Screenshot 1 & 2
+  const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
+  const [activeDocumentName, setActiveDocumentName] = useState('SOVARA_Demo_Script');
+
   // Independent chat session state - default to fresh new chat on startup
-  const [activeChatId, setActiveChatId] = useState<string>(() => localStorage.getItem('sovara_active_chat_id') ?? ('chat-session-' + Date.now()));
+  const [activeChatId, setActiveChatId] = useState<string>(() => {
+    return 'chat-session-' + Date.now();
+  });
   const [activeChatTitle, setActiveChatTitle] = useState('New Chat');
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => { try { const stored = localStorage.getItem('sovara_chat_sessions'); return stored ? JSON.parse(stored) : []; } catch { return []; } });
-  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(() => { try { const stored = localStorage.getItem('sovara_chat_messages'); return stored ? JSON.parse(stored) : {}; } catch { return {}; } });
+
+  // Initializing chat sessions, sanitizing against any corrupt or junk legacy items
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
+    try {
+      const stored = localStorage.getItem('sovara_chat_sessions');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Filter out sessions with corrupted titles
+          const valid = parsed.filter((s: any) => s && s.title && !s.title.includes('sdasdsd'));
+          if (valid.length > 0) return valid;
+        }
+      }
+    } catch {}
+    return DEFAULT_CHAT_SESSIONS;
+  });
+
+  // Initializing chat messages, purging any legacy stuck query strings
+  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(() => {
+    try {
+      const stored = localStorage.getItem('sovara_chat_messages');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const sanitized: Record<string, ChatMessage[]> = {};
+        for (const [key, msgs] of Object.entries(parsed)) {
+          if (Array.isArray(msgs)) {
+            const cleanMsgs = msgs.filter((m: any) => !m?.text?.includes('sdasdsdcdcd'));
+            sanitized[key] = cleanMsgs;
+          }
+        }
+        return { ...INITIAL_PRESET_MESSAGES, ...sanitized };
+      }
+    } catch {}
+    return INITIAL_PRESET_MESSAGES;
+  });
   
   useEffect(() => {
     const restoredSession = chatSessions.find((session) => session.id === activeChatId);
     if (restoredSession) setActiveChatTitle(restoredSession.title);
 
     localStorage.setItem('sovara_chat_sessions', JSON.stringify(chatSessions));
-  }, [chatSessions]);
+  }, [chatSessions, activeChatId]);
 
   useEffect(() => {
     localStorage.setItem('sovara_chat_messages', JSON.stringify(chatMessages));
@@ -46,23 +87,26 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('sovara_active_chat_id', activeChatId);
   }, [activeChatId]);
+
   // Data collections with CRUD capabilities
-  const [vaultDocs, setVaultDocs] = useState<VaultDocument[]>([]);
-      const loadVaultDocuments = async () => {
+  const [vaultDocs, setVaultDocs] = useState<VaultDocument[]>(INITIAL_VAULT_DOCS);
+  const loadVaultDocuments = async () => {
     try {
       const response = await sovaraApi.listVaultDocuments();
 
-      const documents: VaultDocument[] = response.map((doc: any) => ({
-        id: doc.document_id,
-        name: doc.filename,
-        pages: 0,
-        uploadedDate: doc.created_at,
-        typeBadge: doc.file_type?.toUpperCase() ?? 'FILE',
-        fileName: doc.filename,
-        description: '',
-      }));
+      if (Array.isArray(response) && response.length > 0) {
+        const documents: VaultDocument[] = response.map((doc: any) => ({
+          id: doc.document_id,
+          name: doc.filename,
+          pages: 0,
+          uploadedDate: doc.created_at,
+          typeBadge: doc.file_type?.toUpperCase() ?? 'FILE',
+          fileName: doc.filename,
+          description: '',
+        }));
 
-      setVaultDocs(documents);
+        setVaultDocs(documents);
+      }
     } catch (error) {
       console.error('Failed to load Vault documents:', error);
     }
@@ -223,6 +267,7 @@ export default function App() {
     setActiveChatId(newId);
     setActiveChatTitle('New Chat');
     setChatMessages((prev) => ({ ...prev, [newId]: [] }));
+    setDocumentViewerOpen(false);
     setActiveTab('chat');
     setRightBarOpen(false);
     if (isMobile) setSidebarOpen(false);
@@ -237,10 +282,17 @@ export default function App() {
     if (foundSession) {
       setActiveChatId(foundSession.id);
       setActiveChatTitle(foundSession.title);
+      if (foundSession.id === 'chat-backend-code' || foundSession.title.includes('python backend')) {
+        setDocumentViewerOpen(true);
+        setActiveDocumentName('SOVARA_Demo_Script');
+      } else {
+        setDocumentViewerOpen(false);
+      }
     } else {
       const newId = `chat-ref-${Date.now()}`;
       setActiveChatId(newId);
       setActiveChatTitle(idOrTitle);
+      setDocumentViewerOpen(false);
       if (!chatMessages[newId]) {
         setChatMessages((prev) => ({
           ...prev,
@@ -259,6 +311,11 @@ export default function App() {
     setActiveTab('chat');
     setRightBarOpen(false);
     if (isMobile) setSidebarOpen(false);
+  };
+
+  const handleOpenDocumentViewer = (docName: string) => {
+    setActiveDocumentName(docName);
+    setDocumentViewerOpen(true);
   };
 
   const getMobileHeaderTitle = () => {
@@ -413,30 +470,46 @@ export default function App() {
           <main className="flex-1 flex overflow-hidden relative">
             <AnimatePresence mode="wait">
               {activeTab === 'chat' && (
-                <motion.div
-                  key={activeChatId}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex-1 flex overflow-hidden relative"
-                >
-                  <MainChat
+                <div key="chat-container" className="flex-1 flex overflow-hidden relative">
+                  <motion.div
                     key={activeChatId}
-                    chatId={activeChatId}
-                    chatTitle={activeChatTitle}
-                    conversationId={
-                      chatSessions.find((session) => session.id === activeChatId)?.conversationId
-                    }
-                    initialMessages={chatMessages[activeChatId] || []}
-                    onOpenRightBar={handleOpenRightBar}
-                    onDownloadFile={handleDownloadFile}
-                    sidebarOpen={sidebarOpen}
-                    onChatTitleUpdate={handleChatTitleUpdate}
-                    onSaveMessages={handleSaveMessages}
-                    onConversationIdUpdate={handleConversationIdUpdate}
-                  />
-                </motion.div>
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex-1 flex overflow-hidden relative min-w-0"
+                  >
+                    <MainChat
+                      key={activeChatId}
+                      chatId={activeChatId}
+                      chatTitle={activeChatTitle}
+                      conversationId={
+                        chatSessions.find((session) => session.id === activeChatId)?.conversationId
+                      }
+                      initialMessages={chatMessages[activeChatId] || []}
+                      onOpenRightBar={handleOpenRightBar}
+                      onDownloadFile={handleDownloadFile}
+                      onOpenDocumentViewer={handleOpenDocumentViewer}
+                      sidebarOpen={sidebarOpen}
+                      onChatTitleUpdate={handleChatTitleUpdate}
+                      onSaveMessages={handleSaveMessages}
+                      onConversationIdUpdate={handleConversationIdUpdate}
+                    />
+                  </motion.div>
+
+                  {/* Split-pane Document Viewer matching Screenshot 1 & 2 */}
+                  <AnimatePresence>
+                    {documentViewerOpen && (
+                      <DocumentViewer
+                        key="split-document-viewer"
+                        isOpen={documentViewerOpen}
+                        documentName={activeDocumentName}
+                        onClose={() => setDocumentViewerOpen(false)}
+                        onDownload={handleDownloadFile}
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
               )}
 
               {activeTab === 'vault' && (

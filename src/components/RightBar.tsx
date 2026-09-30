@@ -83,7 +83,10 @@ export const RightBar: React.FC<RightBarProps> = ({
     if (activeTab !== 'approvals' || !latestMessage) return;
 
     const taskId = latestMessage.taskId;
-    if (!taskId) return;
+    if (!taskId) {
+      setApprovals([]);
+      return;
+    }
 
     let cancelled = false;
 
