@@ -23,6 +23,85 @@ interface RightBarProps {
   latestMessage?: ChatMessage;
 }
 
+const formatTelemetryDuration = (milliseconds?: number | null): string | null => {
+  if (!Number.isFinite(milliseconds) || !milliseconds || milliseconds <= 0) {
+    return null;
+  }
+
+  if (milliseconds < 1000) {
+    return `${Math.round(milliseconds)}ms`;
+  }
+
+  return `${(milliseconds / 1000).toFixed(1)}s`;
+};
+
+const getStageDurationMs = (stage: NonNullable<ChatMessage['stages']>[number]): number | null => {
+  if (!stage.started_at || !stage.completed_at) {
+    return null;
+  }
+
+  const startedAt = Date.parse(stage.started_at);
+  const completedAt = Date.parse(stage.completed_at);
+
+  if (!Number.isFinite(startedAt) || !Number.isFinite(completedAt)) {
+    return null;
+  }
+
+  const duration = completedAt - startedAt;
+  return duration > 0 ? duration : null;
+};
+
+type TelemetryStage = NonNullable<ChatMessage['stages']>[number];
+
+type StageGroup = {
+  stage: TelemetryStage;
+  stages: TelemetryStage[];
+};
+
+const groupTelemetryStages = (stages: TelemetryStage[]): StageGroup[] => {
+  return stages.reduce<StageGroup[]>((groups, stage) => {
+    const previous = groups[groups.length - 1];
+
+    if (previous && previous.stage.stage_type === stage.stage_type) {
+      previous.stages.push(stage);
+      return groups;
+    }
+
+    groups.push({
+      stage,
+      stages: [stage],
+    });
+
+    return groups;
+  }, []);
+};
+const getStageContext = (
+  stage: NonNullable<ChatMessage['stages']>[number],
+): string | null => {
+  const metadata = stage.metadata;
+
+  if (!metadata || typeof metadata !== 'object') {
+    return null;
+  }
+
+  const contextKeys = [
+    'description',
+    'context',
+    'summary',
+    'message',
+    'reason',
+  ];
+
+  for (const key of contextKeys) {
+    const value = metadata[key];
+
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+};
 export const RightBar: React.FC<RightBarProps> = ({
   isOpen,
   onClose,
@@ -34,6 +113,7 @@ export const RightBar: React.FC<RightBarProps> = ({
   const [approvalsLoading, setApprovalsLoading] = useState(false);
 
   const [approvalActionId, setApprovalActionId] = useState<string | null>(null);
+  const [executionExpanded, setExecutionExpanded] = useState(false);
 
   const refreshApprovals = async () => {
     if (!latestMessage?.taskId) return;
@@ -206,115 +286,279 @@ export const RightBar: React.FC<RightBarProps> = ({
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 text-xs font-normal scrollbar-none">
               {activeTab === 'activity' ? (
                 <div className="space-y-4">
-                  <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-[#636372] mb-3">
-                      Execution Timeline
-                    </h3>
+                  {(() => {
+                    const stages = latestMessage?.stages ?? [];
+                    const telemetry = latestMessage?.executionTelemetry;
+                    const stageGroups = groupTelemetryStages(stages);
 
-                    {/* Timeline Steps */}
-                    <div className="space-y-2.5">
-                      {(latestMessage?.stages ?? []).length > 0 ? (
-                        latestMessage!.stages!
-                          .filter(
-                            (stage, index, stages) =>
-                              index === 0 ||
-                              stage.stage_type !== stages[index - 1].stage_type,
-                          )
-                          .map((stage) => {
-                          const isSuccess = stage.status === 'completed';
-                          const isError =
-                            stage.status === 'failed' || stage.status === 'cancelled';
-                          const isRunning =
-                            stage.status === 'running' || stage.status === 'pending';
+                    const hasStageCount = stages.length > 0;
+                    const hasLlmCalls = Boolean(telemetry);
 
-                          return (
-                            <div
-                              key={stage.stage_id}
-                              className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-[#13131a] transition-colors text-[#d4d4d8]"
-                            >
-                              {isSuccess && (
-                                <Check
-                                  size={14}
-                                  className="text-[#34d399] mt-0.5 shrink-0 stroke-[2.5]"
-                                />
-                              )}
-
-                              {isError && (
-                                <X
-                                  size={14}
-                                  className="text-[#f87171] mt-0.5 shrink-0 stroke-[2.5]"
-                                />
-                              )}
-
-                              {isRunning && (
-                                <Clock
-                                  size={13}
-                                  className="text-[#7adfd4] mt-0.5 shrink-0"
-                                />
-                              )}
-
-                              <span
-                                className={`text-[12px] leading-tight ${
-                                  isError
-                                    ? 'text-[#fca5a5]'
-                                    : isSuccess
-                                    ? 'text-[#e4e4e7]'
-                                    : 'text-[#a1a1ad]'
-                                }`}
-                              >
-                                {stage.display_label}
+                    return (
+                      <>
+                        {/* Execution */}
+                        <div className="rounded-xl border border-[#1d1d28] bg-[#121218] overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExecutionExpanded((expanded) => !expanded)
+                            }
+                            className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-[#16161e] transition-colors"
+                            aria-expanded={executionExpanded}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Layers
+                                size={13}
+                                className="text-[#7adfd4] shrink-0"
+                              />
+                              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#a5a5b2]">
+                                Execution
                               </span>
                             </div>
-                          );
-                        })
-                      ) : (
-                        <div className="p-3 rounded-xl bg-[#121218] border border-[#1d1d28] text-[#71717a] text-[12px]">
-                          No execution activity yet.
+
+                            <div className="flex items-center gap-2.5 text-[11px] text-[#71717a] shrink-0">
+                              {hasStageCount && (
+                                <span>
+                                  {stages.length}{' '}
+                                  {stages.length === 1 ? 'stage' : 'stages'}
+                                </span>
+                              )}
+
+                              {hasLlmCalls && (
+                                <span>
+                                  {telemetry!.llm_calls}{' '}
+                                  {telemetry!.llm_calls === 1
+                                    ? 'LLM call'
+                                    : 'LLM calls'}
+                                </span>
+                              )}
+
+                              <span className="text-[#8b8b98]">
+                                {executionExpanded ? '-' : '+'}
+                              </span>
+                            </div>
+                          </button>
+
+                          {executionExpanded && (
+                            <div className="border-t border-[#1d1d28] px-3 py-2.5">
+                              {stages.length > 0 ? (
+                                <div className="space-y-1">
+                                  {stageGroups.map((group) => {
+  const stage = group.stage;
+  const count = group.stages.length;
+  const isSuccess = group.stages.every((item) => item.status === 'completed');
+  const isError = group.stages.some(
+    (item) => item.status === 'failed' || item.status === 'cancelled',
+  );
+  const isRunning = group.stages.some(
+    (item) => item.status === 'running' || item.status === 'pending',
+  );
+  const label = stage.display_label || stage.stage_type;
+
+  return (
+    <div
+      key={stage.stage_id}
+      className="flex items-start gap-2.5 py-2 text-[#d4d4d8]"
+    >
+      <div className="mt-0.5 shrink-0">
+        {isSuccess && (
+          <Check
+            size={13}
+            className="text-[#34d399] stroke-[2.5]"
+          />
+        )}
+
+        {isError && (
+          <X
+            size={13}
+            className="text-[#f87171] stroke-[2.5]"
+          />
+        )}
+
+        {isRunning && (
+          <Clock
+            size={13}
+            className="text-[#fbbf24] stroke-[2]"
+          />
+        )}
+
+        {!isSuccess && !isError && !isRunning && (
+          <Clock
+            size={13}
+            className="text-[#71717a] stroke-[2]"
+          />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={`text-[12px] leading-tight ${
+              isError
+                ? 'text-[#fca5a5]'
+                : isSuccess
+                  ? 'text-[#e4e4e7]'
+                  : 'text-[#a1a1ad]'
+            }`}
+          >
+            {label}
+            {count > 1 ? ` ×${count}` : ''}
+          </span>
+
+          {count === 1 && (
+            <span className="text-[10px] text-[#636372] shrink-0">
+              {formatTelemetryDuration(getStageDurationMs(stage)) ?? ''}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+})}
+                                </div>
+                              ) : (
+                                <div className="text-[11px] text-[#71717a]">
+                                  No execution activity yet.
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Execution Context */}
-                  <div className="pt-3 border-t border-[#1c1c26]">
-                    <div className="text-[11px] font-medium uppercase tracking-wider text-[#636372] mb-2 flex items-center gap-1.5">
-                      <Sparkles size={12} className="text-[#7adfd4]" />
-                      <span>Execution Context</span>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-[#121218] border border-[#1d1d28] text-[#a5a5b2] text-[12px] leading-relaxed space-y-2">
-                      {latestMessage ? (
-                        <>
-                          <div>
-                            <span className="text-[#71717a]">Processing: </span>
-                            <span className="text-[#d4d4d8]">
-                              {latestMessage.executionTelemetry?.processing_location ??
-                                'Local'}
-                            </span>
+                        {/* Execution Context */}
+                        <div className="pt-3 border-t border-[#1c1c26]">
+                          <div className="text-[11px] font-medium uppercase tracking-wider text-[#636372] mb-2 flex items-center gap-1.5">
+                            <Sparkles
+                              size={12}
+                              className="text-[#7adfd4]"
+                            />
+                            <span>Execution Context</span>
                           </div>
 
-                          <div>
-                            <span className="text-[#71717a]">Models: </span>
-                            <span className="text-[#d4d4d8]">
-                              {latestMessage.executionTelemetry?.models_used?.join(', ') ||
-                                'Not reported'}
-                            </span>
+                          <div className="p-3 rounded-xl bg-[#121218] border border-[#1d1d28] text-[#a5a5b2] text-[12px] leading-relaxed space-y-2">
+                            {telemetry ? (
+                              <>
+                                {telemetry.processing_location && (
+                                  <div>
+                                    <span className="text-[#71717a]">
+                                      Processing:{' '}
+                                    </span>
+                                    <span className="text-[#d4d4d8]">
+                                      {telemetry.processing_location}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {telemetry.models_used?.length > 0 && (
+                                  <div>
+                                    <span className="text-[#71717a]">
+                                      Models:{' '}
+                                    </span>
+                                    <span className="text-[#d4d4d8]">
+                                      {telemetry.models_used.join(', ')}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div>
+                                  <span className="text-[#71717a]">
+                                    LLM calls:{' '}
+                                  </span>
+                                  <span className="text-[#d4d4d8]">
+                                    {telemetry.llm_calls}
+                                  </span>
+                                </div>
+
+                                {telemetry.tools_used?.length > 0 && (
+                                  <div>
+                                    <span className="text-[#71717a]">
+                                      Tools:{' '}
+                                    </span>
+                                    <span className="text-[#d4d4d8]">
+                                      {telemetry.tools_used.join(', ')}
+                                    </span>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span>No execution context available yet.</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Sovereignty */}
+                        <div className="pt-3 border-t border-[#1c1c26]">
+                          <div className="text-[11px] font-medium uppercase tracking-wider text-[#636372] mb-2 flex items-center gap-1.5">
+                            <BookOpen
+                              size={12}
+                              className="text-[#7adfd4]"
+                            />
+                            <span>Sovereignty</span>
                           </div>
 
-                          <div>
-                            <span className="text-[#71717a]">LLM calls: </span>
-                            <span className="text-[#d4d4d8]">
-                              {latestMessage.executionTelemetry?.llm_calls ?? 0}
-                            </span>
+                          <div className="p-3 rounded-xl bg-[#121218] border border-[#1d1d28] text-[12px] leading-relaxed space-y-2">
+                            {telemetry ? (
+                              <>
+                                {telemetry.local_inference && (
+                                  <div className="text-[#a5a5b2]">
+                                    Local inference
+                                  </div>
+                                )}
+
+                                {telemetry.no_external_calls && (
+                                  <div className="text-[#a5a5b2]">
+                                    No external calls reported
+                                  </div>
+                                )}
+
+                                {telemetry.external_api_calls > 0 && (
+                                  <div className="text-[#a5a5b2]">
+                                    External API calls:{' '}
+                                    <span className="text-[#d4d4d8]">
+                                      {telemetry.external_api_calls}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {telemetry.network_calls > 0 && (
+                                  <div className="text-[#a5a5b2]">
+                                    Network calls:{' '}
+                                    <span className="text-[#d4d4d8]">
+                                      {telemetry.network_calls}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {telemetry.cloud_uploads > 0 && (
+                                  <div className="text-[#a5a5b2]">
+                                    Cloud uploads:{' '}
+                                    <span className="text-[#d4d4d8]">
+                                      {telemetry.cloud_uploads}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {!telemetry.local_inference &&
+                                  !telemetry.no_external_calls &&
+                                  telemetry.external_api_calls === 0 &&
+                                  telemetry.network_calls === 0 &&
+                                  telemetry.cloud_uploads === 0 && (
+                                    <span className="text-[#71717a]">
+                                      No sovereignty telemetry reported.
+                                    </span>
+                                  )}
+                              </>
+                            ) : (
+                              <span className="text-[#71717a]">
+                                No sovereignty telemetry available yet.
+                              </span>
+                            )}
                           </div>
-                        </>
-                      ) : (
-                        <span>No execution context available yet.</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : activeTab === 'sources' ? (
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>              ) : activeTab === 'sources' ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-[#636372]">

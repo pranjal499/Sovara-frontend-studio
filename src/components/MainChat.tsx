@@ -31,6 +31,7 @@ interface MainChatProps {
   onDownloadFile: (fileName: string) => void;
   sidebarOpen?: boolean;
   onChatTitleUpdate?: (chatId: string, newTitle: string) => void;
+  onOpenDocumentViewer?: (docName: string) => void;
   onSaveMessages?: (chatId: string, messages: ChatMessage[]) => void;
   onConversationIdUpdate?: (chatId: string, conversationId: string) => void;
 }
@@ -125,6 +126,7 @@ export const MainChat: React.FC<MainChatProps> = ({
   onDownloadFile,
   sidebarOpen = true,
   onChatTitleUpdate,
+  onOpenDocumentViewer,
   onSaveMessages,
   onConversationIdUpdate,
 }) => {
@@ -136,6 +138,7 @@ export const MainChat: React.FC<MainChatProps> = ({
   const [isThinking, setIsThinking] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+  const [workflowExpanded, setWorkflowExpanded] = useState(true);
 
   const [workflowStages, setWorkflowStages] = useState<
     Record<string, unknown>[]
@@ -251,6 +254,7 @@ export const MainChat: React.FC<MainChatProps> = ({
     setSelectedFiles([]);
 
     setIsThinking(true);
+    setWorkflowExpanded(true);
 
     workflowStagesRef.current = [];
     setWorkflowStages([]);
@@ -574,7 +578,7 @@ export const MainChat: React.FC<MainChatProps> = ({
                   duration: 0.25,
                 }}
               >
-                <SovaraHeroWatermark className="mb-8" />
+                <SovaraHeroWatermark className="" />
               </motion.div>
 
               {/* Hero Prompt */}
@@ -977,14 +981,17 @@ export const MainChat: React.FC<MainChatProps> = ({
                                         key={index}
                                         whileHover={{
                                           y: -1.5,
-                                          borderColor:
-                                            '#343444',
+                                          borderColor: '#343444',
                                         }}
                                         transition={{
-                                          duration:
-                                            0.15,
+                                          duration: 0.15,
                                         }}
-                                        className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-3.5 rounded-xl bg-[#121217] border border-[#22222b] transition-colors gap-2.5 sm:gap-0 shadow-xs"
+                                        onClick={() =>
+                                          onOpenDocumentViewer?.(
+                                            attachment.name.replace(/\.[^/.]+$/, ''),
+                                          )
+                                        }
+                                        className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-3.5 rounded-xl bg-[#121217] border border-[#22222b] transition-colors gap-2.5 sm:gap-0 shadow-xs cursor-pointer"
                                       >
                                         <div className="flex items-center gap-3 min-w-0">
                                           <div className="p-2 rounded-lg bg-[#181820] text-[#7adfd4] shrink-0">
@@ -1021,11 +1028,10 @@ export const MainChat: React.FC<MainChatProps> = ({
                                           whileTap={{
                                             scale: 0.97,
                                           }}
-                                          onClick={() =>
-                                            handleDownloadAttachment(
-                                              attachment,
-                                            )
-                                          }
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadAttachment(attachment);
+                                          }}
                                           className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1a22] hover:bg-[#242430] text-xs font-medium text-[#e4e4e7] border border-[#2c2c38] transition-all shrink-0 self-end sm:self-auto"
                                         >
                                           <Download
@@ -1192,21 +1198,116 @@ export const MainChat: React.FC<MainChatProps> = ({
                   opacity: 1,
                   y: 0,
                 }}
-                className="flex items-center gap-3 text-xs text-[#7adfd4] pt-2"
+                className="pt-2"
               >
-                <SovaraRibbonLoader
-                  size={26}
-                />
+                <div className="flex items-center gap-3 text-xs text-[#7adfd4]">
+                  <SovaraRibbonLoader size={26} />
 
-                <span className="animate-pulse tracking-wide font-medium">
-                  {workflowStages.length >
-                  0
-                    ? 'SOVARA is processing your request...'
-                    : 'SOVARA is analyzing and verifying context...'}
-                </span>
+                  <span className="animate-pulse tracking-wide font-medium">
+                    {workflowStages.length > 0
+                      ? 'SOVARA is processing your request...'
+                      : 'SOVARA is analyzing and verifying context...'}
+                  </span>
+                </div>
+
+                {workflowStages.length > 0 && (
+                  <div className="mt-3 ml-9 rounded-xl border border-[#1d1d28] bg-[#121218] overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setWorkflowExpanded((expanded) => !expanded)
+                      }
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-[#16161e] transition-colors"
+                      aria-expanded={workflowExpanded}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#a5a5b2]">
+                          Execution
+                        </span>
+
+                        <span className="text-[10px] text-[#636372]">
+                          {workflowStages.length}{' '}
+                          {workflowStages.length === 1 ? 'event' : 'events'}
+                        </span>
+                      </div>
+
+                      <ChevronDown
+                        size={14}
+                        className={`text-[#71717a] shrink-0 transition-transform ${
+                          workflowExpanded ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {workflowExpanded && (
+                      <div className="border-t border-[#1d1d28] px-3 py-2">
+                        <div className="space-y-1">
+                          {workflowStages.map((event, index) => {
+                            const message =
+                              typeof event.message === 'string' &&
+                              event.message.trim()
+                                ? event.message.trim()
+                                : 'Workflow update';
+
+                            const status =
+                              typeof event.status === 'string'
+                                ? event.status
+                                : '';
+
+                            const isLast =
+                              index === workflowStages.length - 1;
+
+                            const isError =
+                              status === 'error' ||
+                              status === 'failed' ||
+                              status === 'cancelled';
+
+                            return (
+                              <div
+                                key={
+                                  typeof event.event_id === 'string'
+                                    ? event.event_id
+                                    : `${index}-${message}`
+                                }
+                                className="flex items-center gap-2.5 py-1.5"
+                              >
+                                <div className="shrink-0">
+                                  {isError ? (
+                                    <X
+                                      size={12}
+                                      className="text-[#f87171]"
+                                    />
+                                  ) : isLast ? (
+                                    <SovaraRibbonLoader size={14} />
+                                  ) : (
+                                    <Check
+                                      size={12}
+                                      className="text-[#34d399] stroke-[2.5]"
+                                    />
+                                  )}
+                                </div>
+
+                                <span
+                                  className={`text-[11px] leading-tight ${
+                                    isError
+                                      ? 'text-[#fca5a5]'
+                                      : isLast
+                                        ? 'text-[#d4d4d8]'
+                                        : 'text-[#a1a1aa]'
+                                  }`}
+                                >
+                                  {message}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </motion.div>
             )}
-
             <div ref={messagesEndRef} />
           </div>
         )}

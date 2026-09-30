@@ -41,6 +41,7 @@ export const SovaraSidebarLogo: React.FC<SovaraLogoProps> = ({
   return (
     <div className={`flex items-center gap-2.5 select-none ${className}`}>
       {/* <SovaraSparkleMark size={iconSize} className="text-[#84e4d9]" /> */}
+      <img src="/asset/fav_icon.svg" alt="Sovara" />
       <img src="/asset/Logo_sidebar.svg" alt="Sovara" />
     </div>
   );
@@ -54,7 +55,7 @@ export const SovaraRibbonLoader: React.FC<{ size?: number; className?: string }>
   return (
     <div className={`relative flex items-center justify-center ${className}`}>
       <svg 
-        width={size} 
+        width={485} 
         height={size} 
         viewBox="0 0 36 36" 
         fill="none" 
@@ -94,7 +95,7 @@ export const SovaraHeroWatermark: React.FC<{ className?: string }> = ({ classNam
         className="font-serif-brand text-[52px] sm:text-[76px] md:text-[92px] lg:text-[104px] font-bold tracking-[0.24em] uppercase leading-none metallic-text drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
       >
         {/* SOVARA */}
-        <img src="/asset/HeroLogo_mainpage.svg" alt="Sovara" width={500}/>
+        <img src="/asset/HeroLogo_mainpage.svg" alt="Sovara" width={350}/>
       </div>
       {/* Subtle bottom specular flare */}
       <div className="w-48 sm:w-80 h-[1px] bg-gradient-to-r from-transparent via-[#7adfd4]/15 to-transparent mt-1" />

@@ -9,6 +9,7 @@ import { NavigationTab, VaultDocument, ArtifactItem, ChatSession, ChatMessage } 
 import { Sidebar } from './components/Sidebar';
 import { WindowBar } from './components/WindowBar';
 import { MainChat } from './components/MainChat';
+import { DocumentViewer } from './components/DocumentViewer';
 import { KnowledgeVault } from './components/KnowledgeVault';
 import { ArtifactsView } from './components/ArtifactsView';
 import { RightBar } from './components/RightBar';
@@ -22,6 +23,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rightBarOpen, setRightBarOpen] = useState(false);
+  const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
+  const [activeDocumentName, setActiveDocumentName] = useState('SOVARA_Demo_Script');
   const [rightBarTab, setRightBarTab] = useState<
     'activity' | 'sources' | 'approvals'
   >('activity');
@@ -114,6 +117,11 @@ export default function App() {
       prev.map((d) => (d.id === updatedDoc.id ? updatedDoc : d))
     );
     showToast(`Updated "${updatedDoc.name}"`);
+  };
+
+  const handleOpenDocumentViewer = (docName: string) => {
+    setActiveDocumentName(docName);
+    setDocumentViewerOpen(true);
   };
 
   const handleDeleteVaultDocument = (id: string) => {
@@ -433,6 +441,7 @@ export default function App() {
                     onDownloadFile={handleDownloadFile}
                     sidebarOpen={sidebarOpen}
                     onChatTitleUpdate={handleChatTitleUpdate}
+                    onOpenDocumentViewer={handleOpenDocumentViewer}
                     onSaveMessages={handleSaveMessages}
                     onConversationIdUpdate={handleConversationIdUpdate}
                   />
@@ -492,6 +501,19 @@ export default function App() {
           </main>
         </div>
       </div>
+
+      {/* Document Viewer */}
+      <AnimatePresence>
+        {documentViewerOpen && (
+          <DocumentViewer
+            key="split-document-viewer"
+            isOpen={documentViewerOpen}
+            documentName={activeDocumentName}
+            onClose={() => setDocumentViewerOpen(false)}
+            onDownload={handleDownloadFile}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Settings Dialog */}
       <SettingsModal
