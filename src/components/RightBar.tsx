@@ -51,6 +51,30 @@ const getStageDurationMs = (stage: NonNullable<ChatMessage['stages']>[number]): 
   return duration > 0 ? duration : null;
 };
 
+type TelemetryStage = NonNullable<ChatMessage['stages']>[number];
+
+type StageGroup = {
+  stage: TelemetryStage;
+  stages: TelemetryStage[];
+};
+
+const groupTelemetryStages = (stages: TelemetryStage[]): StageGroup[] => {
+  return stages.reduce<StageGroup[]>((groups, stage) => {
+    const previous = groups[groups.length - 1];
+
+    if (previous && previous.stage.stage_type === stage.stage_type) {
+      previous.stages.push(stage);
+      return groups;
+    }
+
+    groups.push({
+      stage,
+      stages: [stage],
+    });
+
+    return groups;
+  }, []);
+};
 const getStageContext = (
   stage: NonNullable<ChatMessage['stages']>[number],
 ): string | null => {
@@ -265,20 +289,9 @@ export const RightBar: React.FC<RightBarProps> = ({
                   {(() => {
                     const stages = latestMessage?.stages ?? [];
                     const telemetry = latestMessage?.executionTelemetry;
-
-                    const stageDuration = stages.reduce((total, stage) => {
-                      return total + (getStageDurationMs(stage) ?? 0);
-                    }, 0);
-
-                    const duration =
-                      stageDuration > 0
-                        ? formatTelemetryDuration(stageDuration)
-                        : formatTelemetryDuration(
-                            telemetry?.llm_total_duration_ms,
-                          );
+                    const stageGroups = groupTelemetryStages(stages);
 
                     const hasStageCount = stages.length > 0;
-                    const hasDuration = Boolean(duration);
                     const hasLlmCalls = Boolean(telemetry);
 
                     return (
@@ -311,10 +324,6 @@ export const RightBar: React.FC<RightBarProps> = ({
                                 </span>
                               )}
 
-                              {hasDuration && (
-                                <span>{duration}</span>
-                              )}
-
                               {hasLlmCalls && (
                                 <span>
                                   {telemetry!.llm_calls}{' '}
@@ -334,78 +343,78 @@ export const RightBar: React.FC<RightBarProps> = ({
                             <div className="border-t border-[#1d1d28] px-3 py-2.5">
                               {stages.length > 0 ? (
                                 <div className="space-y-1">
-                                  {stages.map((stage) => {
-                                    const isSuccess =
-                                      stage.status === 'completed';
-                                    const isError =
-                                      stage.status === 'failed' ||
-                                      stage.status === 'cancelled';
-                                    const isRunning =
-                                      stage.status === 'running' ||
-                                      stage.status === 'pending';
-                                    const context = getStageContext(stage);
-                                    const stageDuration = formatTelemetryDuration(
-                                      getStageDurationMs(stage),
-                                    );
+                                  {stageGroups.map((group) => {
+  const stage = group.stage;
+  const count = group.stages.length;
+  const isSuccess = group.stages.every((item) => item.status === 'completed');
+  const isError = group.stages.some(
+    (item) => item.status === 'failed' || item.status === 'cancelled',
+  );
+  const isRunning = group.stages.some(
+    (item) => item.status === 'running' || item.status === 'pending',
+  );
+  const label = stage.display_label || stage.stage_type;
 
-                                    return (
-                                      <div
-                                        key={stage.stage_id}
-                                        className="flex items-start gap-2.5 py-2 text-[#d4d4d8]"
-                                      >
-                                        <div className="mt-0.5 shrink-0">
-                                          {isSuccess && (
-                                            <Check
-                                              size={13}
-                                              className="text-[#34d399] stroke-[2.5]"
-                                            />
-                                          )}
+  return (
+    <div
+      key={stage.stage_id}
+      className="flex items-start gap-2.5 py-2 text-[#d4d4d8]"
+    >
+      <div className="mt-0.5 shrink-0">
+        {isSuccess && (
+          <Check
+            size={13}
+            className="text-[#34d399] stroke-[2.5]"
+          />
+        )}
 
-                                          {isError && (
-                                            <X
-                                              size={13}
-                                              className="text-[#f87171] stroke-[2.5]"
-                                            />
-                                          )}
+        {isError && (
+          <X
+            size={13}
+            className="text-[#f87171] stroke-[2.5]"
+          />
+        )}
 
-                                          {isRunning && (
-                                            <Clock
-                                              size={13}
-                                              className="text-[#7adfd4]"
-                                            />
-                                          )}
-                                        </div>
+        {isRunning && (
+          <Clock
+            size={13}
+            className="text-[#fbbf24] stroke-[2]"
+          />
+        )}
 
-                                        <div className="min-w-0 flex-1">
-                                          <div className="flex items-start justify-between gap-2">
-                                            <span
-                                              className={`text-[12px] leading-tight ${
-                                                isError
-                                                  ? 'text-[#fca5a5]'
-                                                  : isSuccess
-                                                  ? 'text-[#e4e4e7]'
-                                                  : 'text-[#a1a1ad]'
-                                              }`}
-                                            >
-                                              {stage.display_label}
-                                            </span>
+        {!isSuccess && !isError && !isRunning && (
+          <Clock
+            size={13}
+            className="text-[#71717a] stroke-[2]"
+          />
+        )}
+      </div>
 
-                                            {stageDuration && (
-                                              <span className="text-[10px] text-[#636372] shrink-0">
-                                                {stageDuration}
-                                              </span>
-                                            )}
-                                          </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={`text-[12px] leading-tight ${
+              isError
+                ? 'text-[#fca5a5]'
+                : isSuccess
+                  ? 'text-[#e4e4e7]'
+                  : 'text-[#a1a1ad]'
+            }`}
+          >
+            {label}
+            {count > 1 ? ` ×${count}` : ''}
+          </span>
 
-                                          {context && (
-                                            <div className="mt-1 text-[11px] leading-relaxed text-[#71717a]">
-                                              {context}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
+          {count === 1 && (
+            <span className="text-[10px] text-[#636372] shrink-0">
+              {formatTelemetryDuration(getStageDurationMs(stage)) ?? ''}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+})}
                                 </div>
                               ) : (
                                 <div className="text-[11px] text-[#71717a]">
