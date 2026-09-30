@@ -31,6 +31,7 @@ interface MainChatProps {
   onDownloadFile: (fileName: string) => void;
   sidebarOpen?: boolean;
   onChatTitleUpdate?: (chatId: string, newTitle: string) => void;
+  onOpenDocumentViewer?: (docName: string) => void;
   onSaveMessages?: (chatId: string, messages: ChatMessage[]) => void;
   onConversationIdUpdate?: (chatId: string, conversationId: string) => void;
 }
@@ -125,6 +126,7 @@ export const MainChat: React.FC<MainChatProps> = ({
   onDownloadFile,
   sidebarOpen = true,
   onChatTitleUpdate,
+  onOpenDocumentViewer,
   onSaveMessages,
   onConversationIdUpdate,
 }) => {
@@ -979,14 +981,17 @@ export const MainChat: React.FC<MainChatProps> = ({
                                         key={index}
                                         whileHover={{
                                           y: -1.5,
-                                          borderColor:
-                                            '#343444',
+                                          borderColor: '#343444',
                                         }}
                                         transition={{
-                                          duration:
-                                            0.15,
+                                          duration: 0.15,
                                         }}
-                                        className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-3.5 rounded-xl bg-[#121217] border border-[#22222b] transition-colors gap-2.5 sm:gap-0 shadow-xs"
+                                        onClick={() =>
+                                          onOpenDocumentViewer?.(
+                                            attachment.name.replace(/\.[^/.]+$/, ''),
+                                          )
+                                        }
+                                        className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-3.5 rounded-xl bg-[#121217] border border-[#22222b] transition-colors gap-2.5 sm:gap-0 shadow-xs cursor-pointer"
                                       >
                                         <div className="flex items-center gap-3 min-w-0">
                                           <div className="p-2 rounded-lg bg-[#181820] text-[#7adfd4] shrink-0">
@@ -1023,11 +1028,10 @@ export const MainChat: React.FC<MainChatProps> = ({
                                           whileTap={{
                                             scale: 0.97,
                                           }}
-                                          onClick={() =>
-                                            handleDownloadAttachment(
-                                              attachment,
-                                            )
-                                          }
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadAttachment(attachment);
+                                          }}
                                           className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1a22] hover:bg-[#242430] text-xs font-medium text-[#e4e4e7] border border-[#2c2c38] transition-all shrink-0 self-end sm:self-auto"
                                         >
                                           <Download
