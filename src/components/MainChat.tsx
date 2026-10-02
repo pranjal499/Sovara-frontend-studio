@@ -549,7 +549,7 @@ export const MainChat: React.FC<MainChatProps> = ({
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".pdf,.docx"
+        accept=".pdf,.docx,.txt,.csv,.xlsx,.png,.jpg,.jpeg,.webp"
         className="hidden"
         onChange={handleFileSelection}
       />
@@ -595,11 +595,9 @@ export const MainChat: React.FC<MainChatProps> = ({
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() =>
-                      fileInputRef.current?.click()
-                    }
+                    onClick={() => fileInputRef.current?.click()}
                     className="p-2 text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#1a1a22] rounded-lg transition-colors active:scale-95"
-                    title="Attach PDF or DOCX"
+                    title="Attach PDF, DOCX, TXT, CSV, XLSX, or images"
                   >
                     <Paperclip size={18} />
                   </button>
